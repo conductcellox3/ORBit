@@ -1,0 +1,92 @@
+.orbit-note {
+  position: absolute;
+  width: auto;
+  min-width: 120px;
+  max-width: 400px;
+  min-height: 40px;
+  padding: 12px var(--space-note-p);
+  background-color: var(--color-note-bg);
+  border-radius: var(--radius-note);
+  box-shadow: var(--shadow-base);
+  z-index: var(--z-note);
+  cursor: default;
+  transition: box-shadow 0.2s ease, transform 0.1s ease;
+  transform-origin: top left;
+}
+
+/* Note States */
+.orbit-note:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+.orbit-note.is-selected {
+  box-shadow: var(--shadow-active);
+  outline: 2px solid var(--color-selection-outline);
+  outline-offset: -1px;
+}
+
+.orbit-note.is-dragging {
+  box-shadow: var(--shadow-drag);
+  z-index: var(--z-drag);
+}
+
+/* Uneditable content styles */
+.orbit-note-content {
+  outline: none;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  caret-color: var(--color-selection-outline);
+}
+
+/* Draw edge connection dot (only visible on shift-hover or active) */
+.orbit-note.is-connection-source {
+  outline: 2px solid var(--color-edge-drawing);
+}
+
+.orbit-frame {
+  position: absolute;
+  background-color: var(--color-frame-bg);
+  border: 1px solid var(--color-frame-border);
+  border-radius: var(--radius-frame);
+  padding: var(--space-frame-p);
+  z-index: var(--z-frame);
+  box-shadow: var(--shadow-base);
+  backdrop-filter: blur(4px);
+  transition: box-shadow 0.2s ease;
+}
+
+.orbit-frame.is-selected {
+  outline: 2px solid var(--color-selection-outline);
+  box-shadow: var(--shadow-active);
+}
+
+.orbit-frame-title {
+  position: absolute;
+  top: -24px;
+  left: 12px;
+  color: var(--color-frame-title);
+  font-weight: 500;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+/* The drawing edge preview */
+.drawing-edge {
+  stroke: var(--color-edge-drawing);
+  stroke-width: 2px;
+  stroke-dasharray: 4;
+  fill: none;
+}
+
+/* Normal Edges */
+.orbit-edge {
+  stroke: var(--color-edge);
+  stroke-width: 2px;
+  fill: none;
+  transition: stroke 0.2s ease;
+}
+
+.orbit-edge.is-selected {
+  stroke: var(--color-edge-active);
+  stroke-width: 3px;
+}

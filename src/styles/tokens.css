@@ -1,0 +1,41 @@
+:root {
+  /* Colors - Base */
+  --color-canvas-bg: #F8F9FA;
+  --color-text-main: #202124;
+  --color-text-muted: #5F6368;
+  
+  /* Colors - Elements */
+  --color-note-bg: #FFFFFF;
+  --color-frame-bg: rgba(255, 255, 255, 0.4);
+  --color-frame-border: #E2E8F0;
+  --color-frame-title: #64748B;
+  --color-edge: #CBD5E1;
+  --color-edge-active: #94A3B8;
+
+  /* Colors - Selection / Active */
+  --color-selection-outline: #3B82F6; /* Soft blue focus ring */
+
+  /* Typography */
+  --font-family-base: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  --font-size-base: 14px;
+  --line-height-base: 1.5;
+
+  /* Spacing */
+  --space-note-p: 16px;
+  --radius-note: 12px;
+  --radius-frame: 16px;
+
+  /* Shadows (Elevations) */
+  --shadow-base: 0 4px 12px rgba(0, 0, 0, 0.04);
+  --shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.08);
+  --shadow-active: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-drag: 0 16px 32px rgba(0, 0, 0, 0.16);
+
+  /* Z-Index Hierarchy */
+  --z-canvas-bg: 0;
+  --z-edge: 10;
+  --z-frame: 20;
+  --z-note: 30;
+  --z-topbar: 100;
+  --z-drag: 200;
+}

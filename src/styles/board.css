@@ -1,0 +1,37 @@
+#canvas-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  cursor: grab; /* Grab cursor for panning */
+}
+
+#canvas-container:active {
+  cursor: grabbing;
+}
+
+#board-transform {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  /* Origin centered at 0,0. Transforming container moves everything */
+  transform-origin: 0 0;
+}
+
+/* The SVG overlay for edges */
+#edge-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none; /* Let clicks pass through */
+  z-index: var(--z-edge);
+}
+
+/* Enable pointer events on actual SVG paths for selection/hover */
+#edge-layer path {
+  pointer-events: stroke;
+}
