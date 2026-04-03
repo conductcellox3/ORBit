@@ -1,29 +1,51 @@
-import { BaseDirectory, readTextFile, writeTextFile, exists, mkdir } from '@tauri-apps/plugin-fs';
+import { workspaceManager } from './workspace.js';
 
 export class Persistence {
   constructor(state, history) {
     this.state = state;
     this.history = history;
-    this.filename = 'board.json';
   }
 
-  async load() {
-    try {
-      const isExist = await exists(this.filename, { baseDir: BaseDirectory.AppLocalData });
-      if (isExist) {
-        const contents = await readTextFile(this.filename, { baseDir: BaseDirectory.AppLocalData });
-        const snapshot = JSON.parse(contents);
-        this.state.restoreSnapshot(snapshot);
-        // Clear history on fresh load
-        this.history.undoStack = [];
-        this.history.redoStack = [];
+  async loadNativeBoard(boardId) {
+    // Clear history on fresh load
+    this.history.undoStack = [];
+    this.history.redoStack = [];
+    
+    if (boardId) {
+      const data = await workspaceManager.loadBoardState(boardId);
+      if (data && data.state) {
+        this.state.restoreSnapshot(data.state);
+        this.state.sourceType = 'native';
+        this.state.boardId = boardId;
+        this.state.title = data.meta.title;
         this.history.commit();
-      } else {
-        await this.save(); // save default empty board
+        await workspaceManager.touchBoard(boardId, this.state.title);
+        return;
       }
-    } catch (e) {
-      console.error("Failed to load board data", e);
     }
+    
+    // If no boardId or failed to load, try an existing board
+    if (workspaceManager.manifest && workspaceManager.manifest.boards.length > 0) {
+      const recentId = workspaceManager.manifest.recentBoardIds[0] || workspaceManager.manifest.boards[0].id;
+      const fallbackData = await workspaceManager.loadBoardState(recentId);
+      if (fallbackData && fallbackData.state) {
+        this.state.restoreSnapshot(fallbackData.state);
+        this.state.sourceType = 'native';
+        this.state.boardId = recentId;
+        this.state.title = fallbackData.meta.title;
+        this.history.commit();
+        await workspaceManager.touchBoard(recentId, this.state.title);
+        return;
+      }
+    }
+
+    // Only create a new Main Board if absolutely no other boards exist
+    const newBoard = await workspaceManager.createBoard("Main Board");
+    this.state.restoreSnapshot(newBoard.state);
+    this.state.sourceType = 'native';
+    this.state.boardId = newBoard.id;
+    this.state.title = newBoard.meta.title;
+    this.history.commit();
   }
 
   async loadLegacyBoard(legacySnapshot) {
@@ -43,17 +65,23 @@ export class Persistence {
       return;
     }
 
+    if (!this.state.boardId) {
+      console.error("Cannot save: No boardId specified.");
+      return;
+    }
+
     try {
       const snapshot = this.state.getSnapshot();
+      
+      const dirName = workspaceManager.getBoardDirName(this.state.boardId);
+      const boardDir = `${workspaceManager.workspaceDirName}/boards/${dirName}`;
       const stringified = JSON.stringify(snapshot, null, 2);
       
-      // Ensure directory exists
-      const dirExist = await exists('', { baseDir: BaseDirectory.AppLocalData });
-      if (!dirExist) {
-        await mkdir('', { baseDir: BaseDirectory.AppLocalData, recursive: true });
-      }
-
-      await writeTextFile(this.filename, stringified, { baseDir: BaseDirectory.AppLocalData });
+      const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+      await writeTextFile(`${boardDir}/state.json`, stringified, workspaceManager.basePathObj);
+      
+      // Update touches and title silently
+      await workspaceManager.touchBoard(this.state.boardId, this.state.title);
     } catch (e) {
       console.error("Failed to save board data", e);
     }

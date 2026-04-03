@@ -69,6 +69,18 @@ export class WorkspaceLoader {
       return null;
     }
   }
+
+  async resolveBoardPath(id, slug) {
+    const { resolve, appLocalDataDir } = await import('@tauri-apps/api/path');
+    const basePath = await this.resolvePath();
+    const boardDirName = `boards/${id}__${slug}`;
+    
+    if (basePath) {
+      return await resolve(basePath, boardDirName);
+    } else {
+      return await resolve(await appLocalDataDir(), boardDirName);
+    }
+  }
 }
 
 export const workspaceLoader = new WorkspaceLoader();

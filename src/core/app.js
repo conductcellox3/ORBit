@@ -3,6 +3,8 @@ import { History } from './history.js';
 import { Selection } from './selection.js';
 import { Persistence } from './persistence.js';
 
+import { workspaceManager } from './workspace.js';
+
 export class App {
   constructor() {
     this.state = new State();
@@ -12,16 +14,20 @@ export class App {
   }
 
   async init() {
-    await this.persistence.load();
+    await workspaceManager.init();
+    
+    // Look for last open board, or null to auto-create
+    const lastId = workspaceManager.manifest?.lastOpenedBoardId;
+    await this.loadNativeBoard(lastId);
   }
 
   save() {
     this.persistence.save();
   }
 
-  async loadNativeBoard() {
+  async loadNativeBoard(boardId) {
     this.selection.clear();
-    await this.init(); // init calls persistence.load() which fetches native Default board
+    await this.persistence.loadNativeBoard(boardId);
     
     // We notify listeners of a full reset so canvas knows to sync viewport
     if (this.onBoardLoad) {

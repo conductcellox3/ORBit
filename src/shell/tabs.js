@@ -5,24 +5,32 @@ export class TabManager {
   constructor(elementId, app) {
     this.element = document.getElementById(elementId);
     this.app = app;
-    this.openTabs = new Map(); // id -> { id, title, type: 'legacy', slug }
+    this.openTabs = new Map(); // id -> { id, title, type: 'legacy'|'native', slug? }
+  }
+
+  syncTabFromState() {
+    const id = this.app.state.boardId;
+    if (id && !this.openTabs.has(id)) {
+      this.openTabs.set(id, {
+        id,
+        title: this.app.state.title || 'Untitled Board',
+        type: this.app.state.sourceType,
+        slug: this.app.state.slug || ''
+      });
+    } else if (id && this.openTabs.has(id)) {
+      const tab = this.openTabs.get(id);
+      if (tab.title !== this.app.state.title) {
+        tab.title = this.app.state.title;
+      }
+    }
   }
 
   mount() {
+    this.syncTabFromState();
     this.render();
+    
     this.app.state.subscribe(() => {
-      // Sync open legacy board if it's new
-      if (this.app.state.sourceType === 'legacy') {
-        const id = this.app.state.boardId;
-        if (!this.openTabs.has(id)) {
-          this.openTabs.set(id, {
-            id,
-            title: this.app.state.title || 'Untitled Board',
-            type: 'legacy',
-            slug: this.app.state.slug || ''
-          });
-        }
-      }
+      this.syncTabFromState();
       this.render();
     });
   }
@@ -30,20 +38,9 @@ export class TabManager {
   render() {
     this.element.innerHTML = '';
     
-    const currentId = this.app.state.sourceType === 'legacy' ? this.app.state.boardId : 'default';
+    const currentId = this.app.state.boardId;
     
-    // Always render native Main Board tab
-    const nativeTab = document.createElement('div');
-    nativeTab.className = `board-tab ${currentId === 'default' ? 'is-active' : ''}`;
-    nativeTab.textContent = 'Default';
-    nativeTab.addEventListener('click', async () => {
-      if (currentId !== 'default') {
-        await this.app.loadNativeBoard();
-      }
-    });
-    this.element.appendChild(nativeTab);
-    
-    // Render all tracked legacy tabs
+    // Render all tracked tabs
     for (const [id, tabInfo] of this.openTabs.entries()) {
       const tabEl = document.createElement('div');
       tabEl.className = `board-tab ${currentId === id ? 'is-active' : ''}`;
@@ -75,9 +72,24 @@ export class TabManager {
         e.stopPropagation();
         this.openTabs.delete(id);
         
-        // If we closed the active tab, fall back to Default
+        // If we closed the active tab, fall back to the first available tab
         if (currentId === id) {
-          await this.app.loadNativeBoard();
+          const nextTab = this.openTabs.values().next().value;
+          if (nextTab) {
+             if (nextTab.type === 'native') {
+                 await this.app.loadNativeBoard(nextTab.id);
+             } else {
+                 const legacyData = await workspaceLoader.loadBoardState(nextTab.id, nextTab.slug);
+                 if (legacyData) {
+                   const fakeManifestEntry = { title: nextTab.title, slug: nextTab.slug };
+                   const snapshot = legacyAdapter.adapt(fakeManifestEntry, legacyData.meta, legacyData.state);
+                   await this.app.loadLegacyBoard(snapshot);
+                 }
+             }
+          } else {
+             // If all tabs closed, load native fallback
+             await this.app.loadNativeBoard();
+          }
         } else {
           this.render(); // just re-render to remove it visually
         }
@@ -88,12 +100,15 @@ export class TabManager {
       
       tabEl.addEventListener('click', async () => {
         if (currentId !== id) {
-          const legacyData = await workspaceLoader.loadBoardState(id, tabInfo.slug);
-          if (legacyData) {
-            // Need a minimal manifest entry shape for the adapter
-            const fakeManifestEntry = { title: tabInfo.title, slug: tabInfo.slug };
-            const snapshot = legacyAdapter.adapt(fakeManifestEntry, legacyData.meta, legacyData.state);
-            await this.app.loadLegacyBoard(snapshot);
+          if (tabInfo.type === 'native') {
+              await this.app.loadNativeBoard(tabInfo.id);
+          } else {
+              const legacyData = await workspaceLoader.loadBoardState(id, tabInfo.slug);
+              if (legacyData) {
+                const fakeManifestEntry = { title: tabInfo.title, slug: tabInfo.slug };
+                const snapshot = legacyAdapter.adapt(fakeManifestEntry, legacyData.meta, legacyData.state);
+                await this.app.loadLegacyBoard(snapshot);
+              }
           }
         }
       });
