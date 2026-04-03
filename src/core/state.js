@@ -34,7 +34,7 @@ export class State {
       sourceType: this.sourceType,
       canvas: { ...this.canvas },
       notes: Array.from(this.notes.entries()).map(([k, v]) => [k, { ...v }]),
-      frames: Array.from(this.frames.entries()).map(([k, v]) => [k, { ...v }]),
+      frames: Array.from(this.frames.entries()).map(([k, v]) => [k, { ...v, childIds: v.childIds ? [...v.childIds] : [] }]),
       edges: Array.from(this.edges.entries()).map(([k, v]) => [k, { ...v }])
     };
   }
@@ -50,14 +50,36 @@ export class State {
       const height = v.height ?? v.h;
       return [k, { ...v, width: width === null ? undefined : width, height: height === null ? undefined : height }];
     }));
-    this.frames = new Map(snapshot.frames.map(([k, v]) => [k, { ...v }]));
+    this.frames = new Map(snapshot.frames ? snapshot.frames.map(([k, v]) => [k, { ...v, childIds: v.childIds ? [...v.childIds] : [] }]) : []);
     this.edges = new Map(snapshot.edges.map(([k, v]) => [k, { ...v }]));
+
+    // Hydration Repair Loop: ensure childIds and parentFrameId match
+    for (const [frameId, frame] of this.frames.entries()) {
+      frame.childIds = frame.childIds.filter(id => this.notes.has(id));
+      for (const childId of frame.childIds) {
+        this.notes.get(childId).parentFrameId = frameId;
+      }
+    }
+    
+    // Reverse check: Note might claim a parent that doesn't acknowledge it
+    for (const [noteId, note] of this.notes.entries()) {
+      if (note.parentFrameId) {
+        const parentFrame = this.frames.get(note.parentFrameId);
+        if (parentFrame) {
+          if (!parentFrame.childIds.includes(noteId)) {
+            parentFrame.childIds.push(noteId);
+          }
+        } else {
+          note.parentFrameId = null;
+        }
+      }
+    }
     this.notify();
   }
 
   addNote(x, y, text = '') {
     const id = crypto.randomUUID();
-    this.notes.set(id, { id, text, x, y });
+    this.notes.set(id, { id, text, x, y, parentFrameId: null });
     this.notify();
     return id;
   }
@@ -105,16 +127,81 @@ export class State {
 
   addFrame(x, y, title = 'New Frame', width = 400, height = 300) {
     const id = crypto.randomUUID();
-    this.frames.set(id, { id, title, x, y, width, height });
+    this.frames.set(id, { id, title, x, y, width, height, childIds: [] });
     this.notify();
     return id;
   }
   
+  createFrameFromSelection(ids) {
+    if (this.sourceType === 'legacy' || !ids || ids.size < 2) return null;
+    
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const childIds = [];
+    
+    for (const id of ids) {
+      const note = this.notes.get(id);
+      if (note) {
+        childIds.push(id);
+        const nw = note.width || 120;
+        const nh = note.height || 56;
+        minX = Math.min(minX, note.x);
+        minY = Math.min(minY, note.y);
+        maxX = Math.max(maxX, note.x + nw);
+        maxY = Math.max(maxY, note.y + nh);
+      }
+    }
+    
+    if (childIds.length < 2) return null;
+
+    const pad = 32;
+    const x = minX - pad;
+    const y = minY - pad * 2;
+    const width = (maxX - minX) + pad * 2;
+    const height = (maxY - minY) + pad * 3;
+
+    const frameId = crypto.randomUUID();
+    this.frames.set(frameId, {
+      id: frameId,
+      title: 'Untitled Frame',
+      x, y, width, height,
+      childIds: [...childIds]
+    });
+
+    for (const id of childIds) {
+      this.notes.get(id).parentFrameId = frameId;
+    }
+
+    this.notify();
+    return frameId;
+  }
+
+  renameFrame(id, newTitle) {
+    const frame = this.frames.get(id);
+    if (frame && frame.title !== newTitle) {
+      frame.title = newTitle;
+      this.notify();
+    }
+  }
+
   moveFrame(id, x, y) {
     const frame = this.frames.get(id);
     if (frame && (frame.x !== x || frame.y !== y)) {
+      const dx = x - frame.x;
+      const dy = y - frame.y;
+      
       frame.x = x;
       frame.y = y;
+      
+      if (frame.childIds) {
+        for (const childId of frame.childIds) {
+          const child = this.notes.get(childId);
+          if (child) {
+            child.x += dx;
+            child.y += dy;
+          }
+        }
+      }
+      
       this.notify();
     }
   }
@@ -132,6 +219,13 @@ export class State {
       return true;
     }
     if (this.frames.has(id)) {
+      const frame = this.frames.get(id);
+      if (frame.childIds) {
+        for (const childId of frame.childIds) {
+          const child = this.notes.get(childId);
+          if (child) child.parentFrameId = null;
+        }
+      }
       this.frames.delete(id);
       this.notify();
       return true;

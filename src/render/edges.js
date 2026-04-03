@@ -49,7 +49,7 @@ export class EdgeRenderer {
 
   render(activeDrawEdge = null) {
     const edges = this.app.state.edges;
-    const selectedId = this.app.selection.type === 'edge' ? this.app.selection.selectedId : null;
+    const isEdgeSelection = this.app.selection.type === 'edge';
 
     for (const [id, path] of this.paths.entries()) {
       if (id !== 'draw-preview' && !edges.has(id)) {
@@ -87,7 +87,7 @@ export class EdgeRenderer {
         }
       }
 
-      path.classList.toggle('is-selected', id === selectedId);
+      path.classList.toggle('is-selected', isEdgeSelection && this.app.selection.has(id));
     }
 
     let previewPath = this.paths.get('draw-preview');

@@ -4,11 +4,9 @@ export class DragInteraction {
     this.canvas = canvas;
     this.edgeDraw = edgeDraw;
     this.draggingType = null;
-    this.draggingId = null;
     this.startX = 0;
     this.startY = 0;
-    this.initX = 0;
-    this.initY = 0;
+    this.initPositions = new Map();
     this.moved = false;
   }
 
@@ -17,54 +15,91 @@ export class DragInteraction {
       this.edgeDraw.start(id, e);
       return;
     }
-    
-    this.app.selection.select(id, type);
 
-    let obj = type === 'note' ? this.app.state.notes.get(id) : this.app.state.frames.get(id);
-    if (!obj) return;
+    if (e.ctrlKey || e.metaKey) {
+      if (type === 'note' && !this.app.state.notes.get(id)?.isImage) {
+        this.app.selection.toggleSelect(id, type);
+      }
+      e.stopPropagation();
+      return;
+    }
+
+    if (!this.app.selection.has(id)) {
+      if (type === 'note' && this.app.state.notes.get(id)?.isImage) {
+         // Single select image
+         this.app.selection.select(id, type);
+      } else {
+         this.app.selection.select(id, type);
+      }
+    }
 
     this.draggingType = type;
-    this.draggingId = id;
     this.startX = e.clientX;
     this.startY = e.clientY;
-    this.initX = obj.x;
-    this.initY = obj.y;
+    this.initPositions.clear();
     this.moved = false;
 
-    const el = document.querySelector(`[data-id="${id}"]`);
-    if (el) el.classList.add('is-dragging');
+    for (const selectedId of this.app.selection.selectedIds) {
+      const obj = type === 'note' ? this.app.state.notes.get(selectedId) : this.app.state.frames.get(selectedId);
+      if (obj) {
+        this.initPositions.set(selectedId, { x: obj.x, y: obj.y });
+        const el = document.querySelector(`[data-id="${selectedId}"]`);
+        if (el) el.classList.add('is-dragging');
+        
+        if (type === 'frame' && obj.childIds) {
+          for (const childId of obj.childIds) {
+            const childEl = document.querySelector(`[data-id="${childId}"]`);
+            if (childEl) childEl.classList.add('is-dragging');
+          }
+        }
+      }
+    }
 
     e.stopPropagation();
   }
 
   handlePointerMove(e) {
-    if (this.draggingId) {
+    if (this.initPositions.size > 0) {
       this.moved = true;
       const dx = (e.clientX - this.startX) / this.canvas.viewport.zoom;
       const dy = (e.clientY - this.startY) / this.canvas.viewport.zoom;
 
-      const newX = this.initX + dx;
-      const newY = this.initY + dy;
+      for (const [id, initPos] of this.initPositions.entries()) {
+        const newX = initPos.x + dx;
+        const newY = initPos.y + dy;
 
-      if (this.draggingType === 'note') {
-        this.app.state.moveNote(this.draggingId, newX, newY);
-      } else if (this.draggingType === 'frame') {
-        this.app.state.moveFrame(this.draggingId, newX, newY);
+        if (this.draggingType === 'note') {
+          this.app.state.moveNote(id, newX, newY);
+        } else if (this.draggingType === 'frame') {
+          this.app.state.moveFrame(id, newX, newY);
+        }
       }
     }
   }
 
   handlePointerUp(e) {
-    if (this.draggingId) {
-      const el = document.querySelector(`[data-id="${this.draggingId}"]`);
-      if (el) el.classList.remove('is-dragging');
+    if (this.initPositions.size > 0) {
+      for (const id of this.initPositions.keys()) {
+        const el = document.querySelector(`[data-id="${id}"]`);
+        if (el) el.classList.remove('is-dragging');
+        
+        if (this.draggingType === 'frame') {
+          const frame = this.app.state.frames.get(id);
+          if (frame && frame.childIds) {
+            for (const childId of frame.childIds) {
+              const childEl = document.querySelector(`[data-id="${childId}"]`);
+              if (childEl) childEl.classList.remove('is-dragging');
+            }
+          }
+        }
+      }
 
       if (this.moved) {
         this.app.commitHistory();
       }
 
       this.draggingType = null;
-      this.draggingId = null;
+      this.initPositions.clear();
       this.moved = false;
     }
   }

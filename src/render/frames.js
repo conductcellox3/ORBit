@@ -8,7 +8,7 @@ export class FrameRenderer {
 
   render() {
     const frames = this.app.state.frames;
-    const selectedId = this.app.selection.type === 'frame' ? this.app.selection.selectedId : null;
+    const isFrameSelection = this.app.selection.type === 'frame';
 
     for (const [id, el] of this.elements.entries()) {
       if (!frames.has(id)) {
@@ -33,7 +33,7 @@ export class FrameRenderer {
       const titleEl = el.querySelector('.orbit-frame-title');
       titleEl.textContent = frame.title;
 
-      el.classList.toggle('is-selected', id === selectedId);
+      el.classList.toggle('is-selected', isFrameSelection && this.app.selection.has(id));
     }
   }
 
@@ -45,7 +45,47 @@ export class FrameRenderer {
     const title = document.createElement('div');
     title.className = 'orbit-frame-title';
     title.textContent = frame.title;
-    
+
+    title.addEventListener('dblclick', (e) => {
+      if (this.app.state.sourceType === 'legacy') return;
+      e.stopPropagation();
+      title.contentEditable = 'true';
+      title.focus();
+      
+      // select all text
+      const range = document.createRange();
+      range.selectNodeContents(title);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    });
+
+    const finishEdit = (cancel = false) => {
+      if (title.contentEditable !== 'true') return;
+      title.contentEditable = 'false';
+      window.getSelection().removeAllRanges();
+      
+      const newTitle = title.textContent.trim() || 'Untitled Frame';
+      if (!cancel && newTitle !== frame.title) {
+        this.app.state.renameFrame(frame.id, newTitle);
+        this.app.commitHistory();
+      } else {
+        title.textContent = frame.title;
+      }
+    };
+
+    title.addEventListener('blur', () => finishEdit(false));
+    title.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        title.blur();
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        finishEdit(true);
+      }
+    });
+
     el.appendChild(title);
 
     el.addEventListener('pointerdown', (e) => {

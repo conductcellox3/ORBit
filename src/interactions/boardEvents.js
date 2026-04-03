@@ -1,3 +1,5 @@
+import { ContextMenu } from '../shell/contextMenu.js';
+
 export class BoardEvents {
   constructor(app, canvas, drag, edgeDraw) {
     this.app = app;
@@ -13,12 +15,60 @@ export class BoardEvents {
   bind() {
     const container = document.getElementById('canvas-container');
 
+    container.addEventListener('contextmenu', (e) => {
+      // Allow frame creation if multiple native notes are selected.
+      if (this.app.state.sourceType === 'native' && this.app.selection.selectedIds.size >= 2) {
+        // Only run if triggered on blank canvas or one of the strictly selected notes
+        const targetId = e.target.closest('.orbit-note')?.dataset.id;
+        const validTrigger = !targetId || this.app.selection.selectedIds.has(targetId);
+        
+        if (validTrigger) {
+          e.preventDefault();
+          e.stopPropagation();
+          ContextMenu.show(e.clientX, e.clientY, [
+            {
+              label: `Create Frame from Selection (${this.app.selection.selectedIds.size})`,
+              onClick: () => {
+                const newFrameId = this.app.state.createFrameFromSelection(this.app.selection.selectedIds);
+                if (newFrameId) {
+                  this.app.selection.clear();
+                  this.app.selection.select(newFrameId, 'frame');
+                  this.app.commitHistory();
+                }
+              }
+            }
+          ]);
+        }
+      }
+    });
+
+    let marqueeEl = null;
+    let isMarquee = false;
+
     container.addEventListener('pointerdown', (e) => {
+      // Right-click check for context menus
+      if (e.button === 2) return;
+
       if (e.target.id === 'canvas-container' || e.target.id === 'edge-layer') {
-        this.app.selection.clear();
-        this.isPanning = true;
-        this.panStartX = e.clientX;
-        this.panStartY = e.clientY;
+        if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
+          this.app.selection.clear();
+        }
+        
+        if (e.shiftKey) {
+          this.isPanning = false;
+          isMarquee = true;
+          this.panStartX = e.clientX;
+          this.panStartY = e.clientY;
+          
+          marqueeEl = document.createElement('div');
+          marqueeEl.className = 'orbit-marquee';
+          document.body.appendChild(marqueeEl);
+        } else {
+          this.isPanning = true;
+          isMarquee = false;
+          this.panStartX = e.clientX;
+          this.panStartY = e.clientY;
+        }
         container.setPointerCapture(e.pointerId);
       }
     });
@@ -30,6 +80,16 @@ export class BoardEvents {
         this.canvas.viewport.pan(dx, dy);
         this.panStartX = e.clientX;
         this.panStartY = e.clientY;
+      } else if (isMarquee && marqueeEl) {
+        const left = Math.min(e.clientX, this.panStartX);
+        const top = Math.min(e.clientY, this.panStartY);
+        const width = Math.abs(e.clientX - this.panStartX);
+        const height = Math.abs(e.clientY - this.panStartY);
+        
+        marqueeEl.style.left = `${left}px`;
+        marqueeEl.style.top = `${top}px`;
+        marqueeEl.style.width = `${width}px`;
+        marqueeEl.style.height = `${height}px`;
       } else {
         this.drag.handlePointerMove(e);
         this.edgeDraw.handlePointerMove(e);
@@ -40,6 +100,60 @@ export class BoardEvents {
       if (this.isPanning) {
         this.isPanning = false;
         container.releasePointerCapture(e.pointerId);
+      } else if (isMarquee) {
+        isMarquee = false;
+        container.releasePointerCapture(e.pointerId);
+
+        if (marqueeEl) {
+          const rect = marqueeEl.getBoundingClientRect();
+          marqueeEl.remove();
+          marqueeEl = null;
+
+          // Convert screen rect to canvas rect
+          const tl = this.canvas.viewport.screenToCanvas(rect.left, rect.top);
+          const br = this.canvas.viewport.screenToCanvas(rect.right, rect.bottom);
+          
+          const selLeft = tl.x;
+          const selTop = tl.y;
+          const selRight = br.x;
+          const selBottom = br.y;
+
+          // Find intersecting nodes
+          if (!e.ctrlKey && !e.metaKey) {
+            this.app.selection.clear();
+          }
+
+          let anySelected = false;
+          for (const [id, note] of this.app.state.notes.entries()) {
+            if (note.isImage) continue; // MVP blocks images from mass selection
+
+            // Bbox fallback if undefined
+            let nW = note.width || 120;
+            let nH = note.height || 56;
+            
+            const el = document.querySelector(`.orbit-note[data-id="${id}"]`);
+            if (el) {
+              nW = el.offsetWidth;
+              nH = el.offsetHeight;
+            }
+
+            const nLeft = note.x;
+            const nTop = note.y;
+            const nRight = note.x + nW;
+            const nBottom = note.y + nH;
+
+            // Intersection Math
+            if (selLeft < nRight && selRight > nLeft && selTop < nBottom && selBottom > nTop) {
+              this.app.selection.selectedIds.add(id);
+              this.app.selection.type = 'note';
+              anySelected = true;
+            }
+          }
+          
+          if (anySelected) {
+            this.app.selection.notify();
+          }
+        }
       } else {
         this.drag.handlePointerUp(e);
         this.edgeDraw.handlePointerUp(e);
@@ -81,8 +195,10 @@ export class BoardEvents {
       }
       
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (this.app.selection.selectedId) {
-          this.app.state.deleteNode(this.app.selection.selectedId);
+        if (this.app.selection.selectedIds.size > 0) {
+          for (const id of Array.from(this.app.selection.selectedIds)) {
+            this.app.state.deleteNode(id);
+          }
           this.app.selection.clear();
           this.app.commitHistory();
         }

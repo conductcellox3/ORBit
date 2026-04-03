@@ -10,7 +10,7 @@ export class NoteRenderer {
 
   render() {
     const notes = this.app.state.notes;
-    const selectedId = this.app.selection.type === 'note' ? this.app.selection.selectedId : null;
+    const isNoteSelection = this.app.selection.type === 'note';
 
     for (const [id, el] of this.elements.entries()) {
       if (!notes.has(id)) {
@@ -39,7 +39,7 @@ export class NoteRenderer {
         contentEl.textContent = note.text;
       }
 
-      el.classList.toggle('is-selected', id === selectedId);
+      el.classList.toggle('is-selected', isNoteSelection && this.app.selection.has(id));
     }
   }
 

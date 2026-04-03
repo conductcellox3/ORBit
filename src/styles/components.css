@@ -33,6 +33,7 @@
 .orbit-note.is-dragging {
   box-shadow: var(--shadow-drag);
   z-index: var(--z-drag);
+  transition: none;
 }
 
 /* Uneditable content styles */
@@ -103,6 +104,10 @@
   box-shadow: var(--shadow-selected);
 }
 
+.orbit-frame.is-dragging {
+  transition: none;
+}
+
 .orbit-frame-title {
   position: absolute;
   top: -24px;
@@ -110,7 +115,10 @@
   color: var(--color-frame-title);
   font-weight: 500;
   font-size: 14px;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: text;
+  outline: none;
+  white-space: nowrap;
 }
 
 /* The drawing edge preview */
@@ -132,4 +140,15 @@
 .orbit-edge.is-selected {
   stroke: #1e293b; /* Even darker for selection */
   stroke-width: 2px;
+}
+
+/* Marquee Selection Box */
+.orbit-marquee {
+  position: absolute;
+  /* Light blue overlay */
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  pointer-events: none;
+  z-index: 1000;
+  border-radius: 2px;
 }
