@@ -55,9 +55,73 @@ export class NoteRenderer {
       img.style.height = '100%';
       img.style.objectFit = 'contain';
       
+      // Set fallback to avoid breaking legacy layouts if image files are missing
+      img.onerror = () => {
+        el.innerHTML = '';
+        el.classList.remove('is-image-note');
+        
+        const fallbackBox = document.createElement('div');
+        fallbackBox.style.width = '100%';
+        fallbackBox.style.height = '100%';
+        fallbackBox.style.display = 'flex';
+        fallbackBox.style.flexDirection = 'column';
+        fallbackBox.style.alignItems = 'center';
+        fallbackBox.style.justifyContent = 'center';
+        fallbackBox.style.border = '1px dashed var(--border-color)';
+        fallbackBox.style.borderRadius = 'var(--radius-note)';
+        fallbackBox.style.backgroundColor = 'var(--color-canvas-bg)';
+        fallbackBox.style.color = 'var(--color-text-muted)';
+        fallbackBox.style.padding = '8px';
+        fallbackBox.style.boxSizing = 'border-box';
+        fallbackBox.style.textAlign = 'center';
+        fallbackBox.style.overflow = 'hidden';
+
+        const icon = document.createElement('div');
+        icon.textContent = '🖼️';
+        icon.style.opacity = '0.5';
+        icon.style.marginBottom = '8px';
+        
+        const text = document.createElement('div');
+        text.textContent = 'Missing Asset';
+        text.style.fontSize = '12px';
+        text.style.fontWeight = '500';
+        
+        const filename = document.createElement('div');
+        // fallback extracting just the file name
+        const shortName = note.src ? note.src.split('/').pop() : 'unknown';
+        filename.textContent = shortName;
+        filename.style.fontSize = '10px';
+        filename.style.opacity = '0.7';
+        filename.style.wordBreak = 'break-all';
+        filename.style.marginTop = '4px';
+
+        fallbackBox.appendChild(icon);
+        fallbackBox.appendChild(text);
+        fallbackBox.appendChild(filename);
+
+        if (note.caption) {
+          const caption = document.createElement('div');
+          caption.textContent = note.caption;
+          caption.style.fontSize = '10px';
+          caption.style.fontStyle = 'italic';
+          caption.style.opacity = '0.6';
+          caption.style.marginTop = '8px';
+          caption.style.borderTop = '1px solid rgba(0,0,0,0.1)';
+          caption.style.paddingTop = '8px';
+          caption.style.width = '80%';
+          fallbackBox.appendChild(caption);
+        }
+
+        el.appendChild(fallbackBox);
+      };
+
       // Async resolve image src
       assetResolver.resolveImage(note.src).then(resolvedSrc => {
-        if (resolvedSrc) img.src = resolvedSrc;
+        if (resolvedSrc) {
+          img.src = resolvedSrc;
+        } else {
+          img.dispatchEvent(new Event('error'));
+        }
       });
       
       el.appendChild(img);

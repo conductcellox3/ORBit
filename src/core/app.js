@@ -19,6 +19,16 @@ export class App {
     this.persistence.save();
   }
 
+  async loadNativeBoard() {
+    this.selection.clear();
+    await this.init(); // init calls persistence.load() which fetches native Default board
+    
+    // We notify listeners of a full reset so canvas knows to sync viewport
+    if (this.onBoardLoad) {
+      this.onBoardLoad(this.state.canvas);
+    }
+  }
+
   async loadLegacyBoard(legacySnapshot) {
     this.selection.clear();
     await this.persistence.loadLegacyBoard(legacySnapshot);

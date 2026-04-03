@@ -1,6 +1,8 @@
 export class State {
   constructor() {
     this.boardId = crypto.randomUUID();
+    this.title = 'Main Board';
+    this.slug = '';
     this.notes = new Map(); // id -> { id, text, x, y, width, height }
     this.frames = new Map(); // id -> { id, title, x, y, width, height }
     this.edges = new Map(); // id -> { id, sourceId, targetId }
@@ -27,6 +29,8 @@ export class State {
   getSnapshot() {
     return {
       boardId: this.boardId,
+      title: this.title,
+      slug: this.slug,
       sourceType: this.sourceType,
       canvas: { ...this.canvas },
       notes: Array.from(this.notes.entries()).map(([k, v]) => [k, { ...v }]),
@@ -37,6 +41,8 @@ export class State {
 
   restoreSnapshot(snapshot) {
     this.boardId = snapshot.boardId;
+    this.title = snapshot.title || 'Main Board';
+    this.slug = snapshot.slug || '';
     this.sourceType = snapshot.sourceType || 'native';
     this.canvas = snapshot.canvas || { panX: 0, panY: 0, zoom: 1 };
     this.notes = new Map(snapshot.notes.map(([k, v]) => [k, { ...v }]));

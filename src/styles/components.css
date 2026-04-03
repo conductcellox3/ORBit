@@ -73,21 +73,21 @@
 
 /* The drawing edge preview */
 .drawing-edge {
-  stroke: var(--color-edge-drawing);
-  stroke-width: 2px;
+  stroke: var(--color-edge-active);
+  stroke-width: 1px;
   stroke-dasharray: 4;
   fill: none;
 }
 
 /* Normal Edges */
 .orbit-edge {
-  stroke: var(--color-edge);
-  stroke-width: 2px;
+  stroke: var(--color-edge-active);
+  stroke-width: 1px;
   fill: none;
-  transition: stroke 0.2s ease;
+  transition: stroke 0.2s ease, stroke-width 0.2s ease;
 }
 
 .orbit-edge.is-selected {
-  stroke: var(--color-edge-active);
-  stroke-width: 3px;
+  stroke: #1e293b; /* Even darker for selection */
+  stroke-width: 2px;
 }

@@ -65,7 +65,7 @@ export class Explorer {
         // Lazy load board state
         const legacyData = await workspaceLoader.loadBoardState(board.id, board.slug);
         if (legacyData) {
-          const snapshot = legacyAdapter.adapt(legacyData.meta, legacyData.state);
+          const snapshot = legacyAdapter.adapt(board, legacyData.meta, legacyData.state);
           // Pass the legacy snapshot to the app
           await this.app.loadLegacyBoard(snapshot);
         }

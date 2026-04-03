@@ -10,8 +10,8 @@
   --color-frame-bg: rgba(255, 255, 255, 0.4);
   --color-frame-border: #E2E8F0;
   --color-frame-title: #64748B;
-  --color-edge: #CBD5E1;
-  --color-edge-active: #94A3B8;
+  --color-edge: #64748B; /* Darkened further for straight line visibility */
+  --color-edge-active: #475569;
 
   /* Colors - Selection / Active */
   --color-focus-ring: rgba(0, 0, 0, 0.25); /* Neutral outline for notes and keyboard focus */
@@ -34,8 +34,8 @@
 
   /* Z-Index Hierarchy */
   --z-canvas-bg: 0;
-  --z-edge: 10;
   --z-frame: 20;
+  --z-edge: 25; /* Moved above frame so blur doesn't affect edges */
   --z-note: 30;
   --z-topbar: 100;
   --z-drag: 200;

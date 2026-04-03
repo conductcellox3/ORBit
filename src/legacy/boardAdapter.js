@@ -1,8 +1,11 @@
 export class BoardAdapter {
   constructor() {}
 
-  adapt(legacyMeta, legacyState) {
+  adapt(manifestEntry, legacyMeta, legacyState) {
     const boardId = legacyMeta.id;
+    const title = (manifestEntry && manifestEntry.title) || legacyMeta.title || manifestEntry?.slug || legacyMeta.slug || "Untitled Board";
+    const slug = (manifestEntry && manifestEntry.slug) || legacyMeta.slug || "";
+    
     const notesArray = [];
     const framesArray = [];
     
@@ -65,7 +68,8 @@ export class BoardAdapter {
           {
             id: edge.id,
             sourceId: edge.from,
-            targetId: edge.to
+            targetId: edge.to,
+            direction: edge.direction || 'none'
           }
         ]);
       }
@@ -76,6 +80,8 @@ export class BoardAdapter {
 
     return {
       boardId,
+      title,
+      slug,
       sourceType: 'legacy',
       notes: notesArray,
       frames: framesArray,
