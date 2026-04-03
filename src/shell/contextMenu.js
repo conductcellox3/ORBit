@@ -1,8 +1,11 @@
 export class ContextMenu {
   static currentMenu = null;
+  static onCloseCallback = null;
 
-  static show(x, y, items) {
+  static show(x, y, items, onClose = null) {
     this.hide();
+
+    this.onCloseCallback = onClose;
 
     const menuEl = document.createElement('div');
     menuEl.className = 'explorer-context-menu';
@@ -83,6 +86,10 @@ export class ContextMenu {
     if (this.currentMenu) {
       this.currentMenu.remove();
       this.currentMenu = null;
+      if (this.onCloseCallback) {
+        this.onCloseCallback();
+        this.onCloseCallback = null;
+      }
     }
   }
 }

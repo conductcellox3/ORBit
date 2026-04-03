@@ -112,13 +112,23 @@ export class Explorer {
       }
     }
     
-    // Re-highlight active item whenever state changes (if we had a subscription)
-    // For now we just check during mount.
+    // Re-highlight active item whenever state changes
+    if (!this._boundOnBoardChanged) {
+        const originalOnBoardChanged = this.app.onBoardChanged;
+        this.app.onBoardChanged = (id) => {
+          if (originalOnBoardChanged) originalOnBoardChanged(id);
+          this.container.querySelectorAll('.mock-tree-item').forEach(el => {
+            el.classList.toggle('is-active', el.dataset.id === id);
+          });
+        };
+        this._boundOnBoardChanged = true;
+    }
   }
 
   createTreeItem(board, iconText, isLegacy = false) {
       const itemEl = document.createElement('div');
       itemEl.className = 'mock-tree-item';
+      itemEl.dataset.id = board.id;
       
       const iconEl = document.createElement('span');
       iconEl.className = 'mock-icon';
@@ -172,7 +182,11 @@ export class Explorer {
               
               if (this.app.state.boardId === board.id) {
                   this.app.state.title = newTitle;
-                  this.app.state.notify();
+                  if (this.app.onTitleChanged) this.app.onTitleChanged();
+              } else {
+                  if (this.app.notifyTabTitleChanged) {
+                    this.app.notifyTabTitleChanged(board.id, isLegacy ? 'legacy' : 'native', newTitle);
+                  }
               }
             } else {
                titleEl.textContent = board.title;
@@ -227,13 +241,18 @@ export class Explorer {
              }
         };
 
+        itemEl.classList.add('has-context-menu');
+        
         ContextMenu.show(e.clientX, e.clientY, [
           { label: 'Rename', disabled: isLegacy, onClick: handleRename },
           { label: 'Open Folder', disabled: false, onClick: handleOpenFolder },
           { label: 'Copy Path', disabled: false, onClick: handleCopyPath },
           { type: 'separator', disabled: false },
           { label: 'Delete', disabled: isLegacy, onClick: handleDelete }
-        ]);
+        ], () => {
+          itemEl.classList.remove('has-context-menu');
+        });
+
       });
 
       return itemEl;

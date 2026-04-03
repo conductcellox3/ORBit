@@ -99,7 +99,8 @@
   transition: background var(--transition-speed), color var(--transition-speed);
 }
 
-.mock-tree-item:hover {
+.mock-tree-item:hover,
+.mock-tree-item.has-context-menu {
   background-color: rgba(0,0,0,0.03);
 }
 
@@ -221,6 +222,31 @@
   right: 0;
   height: 2px;
   background-color: var(--color-canvas-bg);
+}
+
+.tab-close-btn {
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: opacity var(--transition-speed), background-color var(--transition-speed);
+  opacity: 0;
+}
+
+.board-tab:hover .tab-close-btn {
+  opacity: 0.4;
+}
+
+.board-tab.is-active .tab-close-btn {
+  opacity: 0.3; /* Subtle at rest for active */
+}
+
+.board-tab.is-active:hover .tab-close-btn {
+  opacity: 0.5;
+}
+
+.tab-close-btn:hover {
+  opacity: 1 !important;
+  background-color: rgba(0,0,0,0.05);
 }
 
 #top-right-utils {
