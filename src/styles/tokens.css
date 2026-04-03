@@ -1,6 +1,7 @@
 :root {
   /* Colors - Base */
-  --color-canvas-bg: #F8F9FA;
+  --color-app-bg: #F1F3F5; /* Shell/Pane background */
+  --color-canvas-bg: #F8F9FA; /* Active canvas background */
   --color-text-main: #202124;
   --color-text-muted: #5F6368;
   
@@ -13,7 +14,7 @@
   --color-edge-active: #94A3B8;
 
   /* Colors - Selection / Active */
-  --color-selection-outline: #3B82F6; /* Soft blue focus ring */
+  --color-focus-ring: rgba(0, 0, 0, 0.25); /* Neutral outline for notes and keyboard focus */
 
   /* Typography */
   --font-family-base: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
@@ -26,10 +27,10 @@
   --radius-frame: 16px;
 
   /* Shadows (Elevations) */
-  --shadow-base: 0 4px 12px rgba(0, 0, 0, 0.04);
-  --shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.08);
-  --shadow-active: 0 8px 24px rgba(0, 0, 0, 0.12);
-  --shadow-drag: 0 16px 32px rgba(0, 0, 0, 0.16);
+  --shadow-base: 0 4px 12px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-hover: 0 8px 20px rgba(0, 0, 0, 0.06), 0 4px 8px rgba(0, 0, 0, 0.04);
+  --shadow-selected: 0 8px 24px rgba(0, 0, 0, 0.08), 0 4px 10px rgba(0, 0, 0, 0.06);
+  --shadow-drag: 0 16px 40px rgba(0, 0, 0, 0.12), 0 8px 16px rgba(0, 0, 0, 0.08);
 
   /* Z-Index Hierarchy */
   --z-canvas-bg: 0;

@@ -4,9 +4,14 @@ import { DragInteraction } from './interactions/drag.js';
 import { EdgeDrawInteraction } from './interactions/edgeDraw.js';
 import { BoardEvents } from './interactions/boardEvents.js';
 
+import { ShellLayout } from './shell/layout.js';
+
 async function bootstrap() {
   const app = new App();
   await app.init();
+  
+  const shell = new ShellLayout(app);
+  shell.mount();
   
   const edgeDraw = new EdgeDrawInteraction(app, null);
   const drag = new DragInteraction(app, null, edgeDraw);

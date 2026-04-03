@@ -1,0 +1,245 @@
+:root {
+  --topbar-height: 48px;
+  --rail-width: 48px;
+  --pane-default-width: 250px;
+  --transition-speed: 0.2s;
+}
+
+#shell-container {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--color-app-bg);
+}
+
+#topbar {
+  display: flex;
+  height: var(--topbar-height);
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--color-app-bg);
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  user-select: none;
+  -webkit-app-region: drag; /* Let Tauri drag window from topbar */
+}
+
+/* Allow clicking buttons inside draggable area */
+#topbar button, #topbar .clickable {
+  -webkit-app-region: no-drag;
+}
+
+#top-left-identity {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-color);
+  width: 200px; /* keep stable width to align center tabs */
+}
+
+#shell-main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-app-bg);
+  transition: width var(--transition-speed) ease-in-out;
+  overflow: hidden;
+  position: relative;
+  border-right: 1px solid var(--border-color);
+}
+
+#right-pane {
+  border-right: none;
+  border-left: 1px solid var(--border-color);
+}
+
+.pane.is-collapsed {
+  width: 0 !important;
+  border: none;
+}
+
+.pane-content {
+  padding: 16px;
+  min-width: 200px; /* Prevent squishing text during transition */
+  white-space: nowrap;
+}
+
+/* Placeholder Styling */
+.pane-header {
+  font-weight: 600;
+  margin-bottom: 24px;
+  color: var(--color-text-main);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.6;
+}
+
+.mock-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mock-tree-item {
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background var(--transition-speed), color var(--transition-speed);
+}
+
+.mock-tree-item:hover {
+  background-color: rgba(0,0,0,0.03);
+}
+
+.mock-tree-item.is-active {
+  background-color: var(--color-canvas-bg);
+  color: var(--color-text-main);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.mock-properties {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mock-property-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mock-label {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mock-value {
+  font-size: 13px;
+  color: var(--color-text-main);
+  padding: 6px 8px;
+  background-color: rgba(0,0,0,0.02);
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.rail {
+  width: var(--rail-width);
+  min-width: var(--rail-width);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 16px;
+  background-color: var(--color-app-bg);
+  border-right: 1px solid var(--border-color);
+}
+
+#right-rail {
+  border-right: none;
+  border-left: 1px solid var(--border-color);
+}
+
+.rail-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background var(--transition-speed);
+  color: var(--text-color);
+}
+
+.rail-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+#center-workspace {
+  flex: 1;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--color-canvas-bg);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.03);
+}
+
+/* Tab Bar */
+#top-center-tabs {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  justify-content: center;
+  align-items: flex-end; /* Push tabs to the bottom to ground them */
+  height: 100%;
+}
+
+.board-tab {
+  padding: 8px 16px;
+  border-radius: 8px 8px 0 0; /* Folder tab shape */
+  font-size: 13px;
+  cursor: default;
+  color: var(--color-text-muted);
+  transition: background var(--transition-speed), color var(--transition-speed);
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.board-tab:hover {
+  color: var(--color-text-main);
+  background-color: rgba(0,0,0,0.03);
+}
+
+.board-tab.is-active {
+  background-color: var(--color-canvas-bg);
+  color: var(--color-text-main);
+  font-weight: 500;
+}
+
+/* Pseudo element seamlessly covers the topbar's bottom border under the active tab */
+.board-tab.is-active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--color-canvas-bg);
+}
+
+#top-right-utils {
+  display: flex;
+  gap: 8px;
+  width: 200px;
+  justify-content: flex-end;
+}
+
+.utility-button {
+  background: none;
+  border: none;
+  padding: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-color);
+  opacity: 0.6;
+}
+
+.utility-button:hover {
+  opacity: 1;
+}

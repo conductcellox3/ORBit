@@ -17,11 +17,12 @@
 /* Note States */
 .orbit-note:hover {
   box-shadow: var(--shadow-hover);
+  transform: translateY(-1px);
 }
 
 .orbit-note.is-selected {
-  box-shadow: var(--shadow-active);
-  outline: 2px solid var(--color-selection-outline);
+  box-shadow: var(--shadow-selected);
+  outline: 1.5px solid var(--color-focus-ring);
   outline-offset: -1px;
 }
 
@@ -35,7 +36,7 @@
   outline: none;
   word-wrap: break-word;
   white-space: pre-wrap;
-  caret-color: var(--color-selection-outline);
+  caret-color: var(--color-text-main);
 }
 
 /* Draw edge connection dot (only visible on shift-hover or active) */
@@ -56,8 +57,8 @@
 }
 
 .orbit-frame.is-selected {
-  outline: 2px solid var(--color-selection-outline);
-  box-shadow: var(--shadow-active);
+  outline: 1.5px solid var(--color-focus-ring);
+  box-shadow: var(--shadow-selected);
 }
 
 .orbit-frame-title {

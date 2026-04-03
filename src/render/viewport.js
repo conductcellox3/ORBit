@@ -18,12 +18,16 @@ export class Viewport {
   }
 
   zoomAt(cursorX, cursorY, scaleFactor) {
+    const rect = this.element.parentElement.getBoundingClientRect();
+    const xRel = cursorX - rect.left;
+    const yRel = cursorY - rect.top;
+    
     // Math to ensure the point under cursor remains at the same screen coordinates
     const newZoom = Math.max(0.1, Math.min(this.zoom * scaleFactor, 5));
     const factor = newZoom / this.zoom;
     
-    this.x = cursorX - (cursorX - this.x) * factor;
-    this.y = cursorY - (cursorY - this.y) * factor;
+    this.x = xRel - (xRel - this.x) * factor;
+    this.y = yRel - (yRel - this.y) * factor;
     this.zoom = newZoom;
     this.apply();
   }

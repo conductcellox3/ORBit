@@ -12,7 +12,7 @@ html, body {
   font-size: var(--font-size-base);
   line-height: var(--line-height-base);
   color: var(--color-text-main);
-  background-color: var(--color-canvas-bg);
+  background-color: var(--color-app-bg);
   
   /* Prevent default text selection during pan/zoom/drag */
   user-select: none;
@@ -23,6 +23,12 @@ html, body {
 [contenteditable="true"], input, textarea {
   user-select: text;
   -webkit-user-select: text;
+}
+
+/* Accessible focus ring for interactive elements */
+:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 #app {

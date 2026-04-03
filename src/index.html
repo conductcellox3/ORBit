@@ -11,20 +11,68 @@
   </head>
 
   <body>
-    <div id="app">
+    <div id="shell-container">
       <!-- Topbar -->
       <div id="topbar">
-        <div class="title">ORBit</div>
+        <div id="top-left-identity"></div>
+        <div id="top-center-tabs"></div>
+        <div id="top-right-utils"></div>
       </div>
       
-      <!-- Canvas Area -->
-      <div id="canvas-container">
-        <!-- The transforming layer that holds all DOM Notes/Frames and Edge endpoints -->
-        <div id="board-transform">
-          <!-- SVG layer for connecting lines, scales/pans internally -->
-          <svg id="edge-layer" xmlns="http://www.w3.org/2000/svg"></svg>
-          <!-- Dynamically populated by JS (Notes, Frames) -->
+      <!-- Main Shell Area -->
+      <div id="shell-main">
+        <!-- Left Side -->
+        <div id="left-rail" class="rail"></div>
+        <div id="left-pane" class="pane">
+          <div class="pane-content">
+            <div class="pane-header">Explorer</div>
+            
+            <div class="mock-tree">
+              <div class="mock-tree-item is-active">
+                <span class="mock-icon">📄</span> Main Board
+              </div>
+              <div class="mock-tree-item">
+                <span class="mock-icon">📁</span> Archive
+              </div>
+              <div class="mock-tree-item">
+                <span class="mock-icon">📁</span> Templates
+              </div>
+            </div>
+          </div>
         </div>
+        
+        <!-- Central Workspace -->
+        <div id="center-workspace">
+          <!-- Canvas Area -->
+          <div id="canvas-container">
+            <!-- The transforming layer that holds all DOM Notes/Frames and Edge endpoints -->
+            <div id="board-transform">
+              <!-- SVG layer for connecting lines, scales/pans internally -->
+              <svg id="edge-layer" xmlns="http://www.w3.org/2000/svg"></svg>
+              <!-- Dynamically populated by JS (Notes, Frames) -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side -->
+        <div id="right-pane" class="pane is-collapsed">
+          <div class="pane-content">
+            <div class="pane-header">Properties</div>
+            
+            <div class="mock-properties">
+              <div class="mock-property-group">
+                <div class="mock-label">Color</div>
+                <div class="mock-value">Default</div>
+              </div>
+              <div class="mock-property-group">
+                <div class="mock-label">Created</div>
+                <div class="mock-value">Just now</div>
+              </div>
+            </div>
+            
+          </div>
+        </div>
+        <div id="right-rail" class="rail"></div>
       </div>
     </div>
 
