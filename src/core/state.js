@@ -45,7 +45,11 @@ export class State {
     this.slug = snapshot.slug || '';
     this.sourceType = snapshot.sourceType || 'native';
     this.canvas = snapshot.canvas || { panX: 0, panY: 0, zoom: 1 };
-    this.notes = new Map(snapshot.notes.map(([k, v]) => [k, { ...v }]));
+    this.notes = new Map(snapshot.notes.map(([k, v]) => {
+      const width = v.width ?? v.w;
+      const height = v.height ?? v.h;
+      return [k, { ...v, width: width === null ? undefined : width, height: height === null ? undefined : height }];
+    }));
     this.frames = new Map(snapshot.frames.map(([k, v]) => [k, { ...v }]));
     this.edges = new Map(snapshot.edges.map(([k, v]) => [k, { ...v }]));
     this.notify();
@@ -71,6 +75,16 @@ export class State {
     if (note && (note.x !== x || note.y !== y)) {
       note.x = x;
       note.y = y;
+      this.notify();
+    }
+  }
+
+  resizeNote(id, width, height) {
+    if (this.sourceType === 'legacy') return;
+    const note = this.notes.get(id);
+    if (note && (note.width !== width || note.height !== height)) {
+      note.width = width;
+      note.height = height;
       this.notify();
     }
   }

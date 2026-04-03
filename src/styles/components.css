@@ -2,8 +2,7 @@
   position: absolute;
   width: auto;
   min-width: 120px;
-  max-width: 400px;
-  min-height: 40px;
+  min-height: 56px;
   padding: 12px var(--space-note-p);
   background-color: var(--color-note-bg);
   border-radius: var(--radius-note);
@@ -12,6 +11,11 @@
   cursor: default;
   transition: box-shadow 0.2s ease, transform 0.1s ease;
   transform-origin: top left;
+}
+
+/* Auto-wrap long text for new/legacy notes that have no explicit width yet */
+.orbit-note:not([style*="width"]) {
+  max-width: 400px;
 }
 
 /* Note States */
@@ -33,10 +37,48 @@
 
 /* Uneditable content styles */
 .orbit-note-content {
+  width: 100%;
+  height: 100%;
   outline: none;
   word-wrap: break-word;
+  overflow-wrap: break-word;
   white-space: pre-wrap;
   caret-color: var(--color-text-main);
+  overflow: hidden; /* clip when shrunk too small */
+}
+
+/* Resize Handle (Native Only, Managed via JS mapping) */
+.orbit-note-resize-handle {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 10;
+}
+
+.orbit-note-resize-handle::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--color-text-muted);
+  border-bottom: 1.5px solid var(--color-text-muted);
+  border-bottom-right-radius: 1px;
+}
+
+.orbit-note:hover .orbit-note-resize-handle,
+.orbit-note.is-selected .orbit-note-resize-handle {
+  opacity: 0.3;
+}
+
+.orbit-note-resize-handle:hover {
+  opacity: 0.8 !important;
 }
 
 /* Draw edge connection dot (only visible on shift-hover or active) */

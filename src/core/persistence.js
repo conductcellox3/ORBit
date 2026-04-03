@@ -75,6 +75,9 @@ export class Persistence {
       
       const dirName = workspaceManager.getBoardDirName(this.state.boardId);
       const boardDir = `${workspaceManager.workspaceDirName}/boards/${dirName}`;
+      
+      await workspaceManager.ensureDir(boardDir);
+      
       const stringified = JSON.stringify(snapshot, null, 2);
       
       const { writeTextFile } = await import('@tauri-apps/plugin-fs');

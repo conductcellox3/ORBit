@@ -28,8 +28,11 @@ export class NoteRenderer {
       }
       
       el.style.transform = `translate(${note.x}px, ${note.y}px)`;
-      if (note.width) el.style.width = `${note.width}px`;
-      if (note.height) el.style.height = `${note.height}px`;
+      if (note.width !== undefined) el.style.width = `${note.width}px`;
+      else el.style.removeProperty('width');
+      
+      if (note.height !== undefined) el.style.height = `${note.height}px`;
+      else el.style.removeProperty('height');
       
       const contentEl = el.querySelector('.orbit-note-content');
       if (contentEl && document.activeElement !== contentEl) {
@@ -169,6 +172,63 @@ export class NoteRenderer {
     el.addEventListener('pointerdown', (e) => {
       this.interactions.handlePointerDown('note', note.id, e);
     });
+
+    if (this.app.state.sourceType === 'native') {
+      const handle = document.createElement('div');
+      handle.className = 'orbit-note-resize-handle';
+      
+      let isResizing = false;
+      let startW, startH, startX, startY, zoom;
+
+      handle.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        
+        isResizing = true;
+        handle.setPointerCapture(e.pointerId);
+        
+        startW = el.offsetWidth;
+        startH = el.offsetHeight;
+        startX = e.clientX;
+        startY = e.clientY;
+        zoom = this.app.state.canvas.zoom || 1;
+      });
+
+      handle.addEventListener('pointermove', (e) => {
+        if (!isResizing) return;
+        
+        const dx = (e.clientX - startX) / zoom;
+        const dy = (e.clientY - startY) / zoom;
+        
+        const newW = Math.max(120, startW + dx);
+        const newH = Math.max(56, startH + dy);
+        
+        el.style.width = `${newW}px`;
+        el.style.height = `${newH}px`;
+        
+        if (this.interactions.canvas && this.interactions.canvas.edgeRenderer) {
+          this.interactions.canvas.edgeRenderer.render();
+        }
+      });
+
+      const cleanup = (e) => {
+        if (!isResizing) return;
+        isResizing = false;
+        handle.releasePointerCapture(e.pointerId);
+        
+        const finalW = el.offsetWidth;
+        const finalH = el.offsetHeight;
+        
+        this.app.state.resizeNote(note.id, finalW, finalH);
+        this.app.commitHistory();
+      };
+
+      handle.addEventListener('pointerup', cleanup);
+      handle.addEventListener('pointercancel', cleanup);
+      handle.addEventListener('lostpointercapture', cleanup);
+      
+      el.appendChild(handle);
+    }
     
     return el;
   }
