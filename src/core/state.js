@@ -5,6 +5,9 @@ export class State {
     this.frames = new Map(); // id -> { id, title, x, y, width, height }
     this.edges = new Map(); // id -> { id, sourceId, targetId }
     
+    this.sourceType = 'native'; // or 'legacy'
+    this.canvas = { panX: 0, panY: 0, zoom: 1 };
+    
     this.listeners = [];
   }
 
@@ -24,6 +27,8 @@ export class State {
   getSnapshot() {
     return {
       boardId: this.boardId,
+      sourceType: this.sourceType,
+      canvas: { ...this.canvas },
       notes: Array.from(this.notes.entries()).map(([k, v]) => [k, { ...v }]),
       frames: Array.from(this.frames.entries()).map(([k, v]) => [k, { ...v }]),
       edges: Array.from(this.edges.entries()).map(([k, v]) => [k, { ...v }])
@@ -32,6 +37,8 @@ export class State {
 
   restoreSnapshot(snapshot) {
     this.boardId = snapshot.boardId;
+    this.sourceType = snapshot.sourceType || 'native';
+    this.canvas = snapshot.canvas || { panX: 0, panY: 0, zoom: 1 };
     this.notes = new Map(snapshot.notes.map(([k, v]) => [k, { ...v }]));
     this.frames = new Map(snapshot.frames.map(([k, v]) => [k, { ...v }]));
     this.edges = new Map(snapshot.edges.map(([k, v]) => [k, { ...v }]));

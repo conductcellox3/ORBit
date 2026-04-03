@@ -2,6 +2,7 @@ import { SidePane } from './panes.js';
 import { IconRail } from './rail.js';
 import { TabManager } from './tabs.js';
 import { TopbarManager } from './topbar.js';
+import { Explorer } from './explorer.js';
 
 export class ShellLayout {
   constructor(app) {
@@ -18,6 +19,8 @@ export class ShellLayout {
     
     this.tabs = new TabManager('top-center-tabs', app);
     this.topbar = new TopbarManager('top-right-utils', app);
+    
+    this.explorer = new Explorer(app, 'left-pane');
   }
 
   mount() {
@@ -28,5 +31,7 @@ export class ShellLayout {
     
     this.tabs.mount();
     this.topbar.mount();
+    
+    this.explorer.mount();
   }
 }

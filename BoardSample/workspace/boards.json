@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "lastOpenedBoardId": "default",
+  "recentBoardIds": [
+    "4325f559-e97e-4fb5-a885-1f89ff576b2e",
+    "default"
+  ],
+  "openTabs": [
+    "default",
+    "4325f559-e97e-4fb5-a885-1f89ff576b2e"
+  ],
+  "topics": [
+    "General",
+    "日本古代史"
+  ],
+  "boards": [
+    {
+      "id": "default",
+      "title": "Default",
+      "topic": "General",
+      "createdAt": 1772904417265,
+      "updatedAt": 1772904417265,
+      "lastOpenedAt": 1775175739482,
+      "background": {
+        "type": "none",
+        "name": null,
+        "file": null,
+        "opacity": 0.2,
+        "scale": 1.0,
+        "x": 0.0,
+        "y": 0.0
+      }
+    },
+    {
+      "id": "4325f559-e97e-4fb5-a885-1f89ff576b2e",
+      "title": "日本書紀 巻第一",
+      "topic": "日本古代史",
+      "createdAt": 1772905273030,
+      "updatedAt": 1772905273030,
+      "lastOpenedAt": 1775175739415,
+      "background": {
+        "type": "none",
+        "name": null,
+        "file": null,
+        "opacity": 1.0,
+        "scale": 1.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "slug": "日本書紀-巻第一"
+    }
+  ]
+}

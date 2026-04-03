@@ -1,0 +1,17 @@
+{
+  "id": "default",
+  "title": "Default",
+  "topic": "General",
+  "createdAt": 1772904417265,
+  "updatedAt": 1772904417265,
+  "lastOpenedAt": 1772904417265,
+  "background": {
+    "type": "none",
+    "name": null,
+    "file": null,
+    "opacity": 0.2,
+    "scale": 1.0,
+    "x": 0.0,
+    "y": 0.0
+  }
+}

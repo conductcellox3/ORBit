@@ -1,0 +1,51 @@
+{
+  "version": 2,
+  "meta": {
+    "id": "tmpl_6ccb9f61-8629-4a83-9858-615c61e57d0d",
+    "name": "Frame",
+    "category": "Meeting",
+    "defaultFrame": {
+      "colorKey": "magenta",
+      "shade": "light"
+    }
+  },
+  "bundle": {
+    "frame": {
+      "type": "frame",
+      "title": "Frame",
+      "w": 794,
+      "h": 334,
+      "colorKey": "magenta",
+      "shade": "light",
+      "collapsed": false
+    },
+    "notes": [
+      {
+        "type": "topic",
+        "relX": 25,
+        "relY": 64
+      },
+      {
+        "type": "calc",
+        "relX": 232,
+        "relY": 74,
+        "w": 312.6666259765625,
+        "h": 214,
+        "text": "100 + 200"
+      },
+      {
+        "type": "note",
+        "relX": 24,
+        "relY": 210,
+        "colorKey": "red",
+        "colorShade": "light"
+      },
+      {
+        "type": "action",
+        "relX": 590,
+        "relY": 89
+      }
+    ],
+    "edges": []
+  }
+}

@@ -19,6 +19,16 @@ export class App {
     this.persistence.save();
   }
 
+  async loadLegacyBoard(legacySnapshot) {
+    this.selection.clear();
+    await this.persistence.loadLegacyBoard(legacySnapshot);
+    
+    // We notify listeners of a full reset so canvas knows to sync viewport
+    if (this.onBoardLoad) {
+      this.onBoardLoad(this.state.canvas);
+    }
+  }
+
   commitHistory() {
     this.history.commit();
     this.save();

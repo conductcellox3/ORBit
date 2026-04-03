@@ -18,6 +18,15 @@ export class CanvasOrchestrator {
 
     this.app.state.subscribe(() => this.render());
     this.app.selection.subscribe(() => this.render());
+    
+    this.app.onBoardLoad = (canvasState) => {
+      if (canvasState) {
+        this.viewport.x = canvasState.panX || 0;
+        this.viewport.y = canvasState.panY || 0;
+        this.viewport.zoom = canvasState.zoom || 1;
+      }
+      this.render();
+    };
   }
 
   render(activeDrawEdge = null) {

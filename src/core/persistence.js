@@ -26,7 +26,23 @@ export class Persistence {
     }
   }
 
+  async loadLegacyBoard(legacySnapshot) {
+    if (legacySnapshot.sourceType === 'legacy') {
+      this.state.sourceType = 'legacy'; // tag session
+    }
+    this.state.restoreSnapshot(legacySnapshot);
+    // Clear history
+    this.history.undoStack = [];
+    this.history.redoStack = [];
+    this.history.commit();
+  }
+
   async save() {
+    if (this.state.sourceType === 'legacy') {
+      console.warn("Save blocked: Legacy boards are opened as read-only to preserve data integrity.");
+      return;
+    }
+
     try {
       const snapshot = this.state.getSnapshot();
       const stringified = JSON.stringify(snapshot, null, 2);
