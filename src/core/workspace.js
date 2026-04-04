@@ -150,6 +150,40 @@ export class NativeWorkspaceManager {
     return newId;
   }
 
+  async renameFolder(folderId, nextName) {
+    if (!this.manifest || !this.manifest.folders || !folderId) return { success: false, reason: 'Invalid folder' };
+    
+    const cleanName = (nextName || '').trim();
+    if (!cleanName) return { success: false, reason: 'Folder name cannot be empty' };
+    
+    const folder = this.manifest.folders.find(f => f.id === folderId);
+    if (!folder) return { success: false, reason: 'Folder not found' };
+    
+    const normalized = cleanName.toLowerCase();
+    const isDuplicate = this.manifest.folders.some(f => f.id !== folderId && f.name.toLowerCase() === normalized);
+    if (isDuplicate) return { success: false, reason: 'A folder with this name already exists' };
+    
+    folder.name = cleanName;
+    await this.saveManifest();
+    return { success: true };
+  }
+
+  async deleteFolder(folderId) {
+    if (!this.manifest || !this.manifest.folders || !folderId) return { success: false, reason: 'Invalid folder' };
+    
+    const folderIndex = this.manifest.folders.findIndex(f => f.id === folderId);
+    if (folderIndex === -1) return { success: false, reason: 'Folder not found' };
+    
+    const isReferenced = this.manifest.boards.some(b => b.folderId === folderId);
+    if (isReferenced) {
+      return { success: false, reason: 'Cannot delete a folder that still contains boards. Please empty the folder first.' };
+    }
+    
+    this.manifest.folders.splice(folderIndex, 1);
+    await this.saveManifest();
+    return { success: true };
+  }
+
   async saveManifest() {
     if (!this.manifest) return;
     const manifestPath = `${this.workspaceDirName}/${this.manifestName}`;

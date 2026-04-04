@@ -131,178 +131,8 @@ export class Explorer {
     newBoardBtn.addEventListener('mouseenter', () => newBoardBtn.style.color = 'var(--color-text, #fff)');
     newBoardBtn.addEventListener('mouseleave', () => newBoardBtn.style.color = 'var(--color-text-muted)');
     
-    newBoardBtn.addEventListener('click', async () => {
-      if (document.getElementById('inline-board-create')) return;
-
-      const creationContainer = document.createElement('div');
-      creationContainer.id = 'inline-board-create';
-      creationContainer.style.padding = '8px 16px';
-      creationContainer.style.display = 'flex';
-      creationContainer.style.flexDirection = 'column';
-      creationContainer.style.gap = '4px';
-      creationContainer.style.borderBottom = '1px solid var(--border-color)';
-      creationContainer.style.background = 'rgba(0,0,0,0.02)';
-
-      creationContainer.style.position = 'relative';
-
-      const styleInput = (inp) => {
-          inp.style.border = '1px solid var(--border-color)';
-          inp.style.background = 'var(--bg-panel, #FFFFFF)';
-          inp.style.color = 'var(--color-text-main, #202124)';
-          inp.style.outline = 'none';
-          inp.style.borderRadius = '3px';
-          inp.style.padding = '4px 6px';
-          inp.style.fontSize = '12px';
-          inp.style.fontFamily = 'inherit';
-          inp.style.width = '100%';
-          inp.style.boxSizing = 'border-box';
-      };
-
-      const titleInput = document.createElement('input');
-      titleInput.type = 'text';
-      titleInput.placeholder = 'Board Title...';
-      styleInput(titleInput);
-      
-      const topicInputContainer = document.createElement('div');
-      topicInputContainer.style.position = 'relative';
-      topicInputContainer.style.width = '100%';
-
-      const topicInput = document.createElement('input');
-      topicInput.type = 'text';
-      topicInput.placeholder = 'Topic (optional)';
-      styleInput(topicInput);
-      topicInputContainer.appendChild(topicInput);
-      
-      const suggestionBox = document.createElement('div');
-      suggestionBox.style.display = 'none';
-      suggestionBox.style.position = 'absolute';
-      suggestionBox.style.top = '100%';
-      suggestionBox.style.left = '0';
-      suggestionBox.style.width = '100%';
-      suggestionBox.style.backgroundColor = 'var(--bg-panel, #FFFFFF)';
-      suggestionBox.style.border = '1px solid var(--border-color)';
-      suggestionBox.style.borderRadius = '3px';
-      suggestionBox.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
-      suggestionBox.style.zIndex = '1000';
-      suggestionBox.style.maxHeight = '150px';
-      suggestionBox.style.overflowY = 'auto';
-      suggestionBox.style.marginTop = '2px';
-      topicInputContainer.appendChild(suggestionBox);
-
-      const topics = workspaceManager.getKnownBoardTopics();
-
-      const renderSuggestions = (query) => {
-        suggestionBox.innerHTML = '';
-        const q = query.toLowerCase().trim();
-        const matches = topics.filter(t => t.toLowerCase().includes(q));
-        if (matches.length === 0) {
-          suggestionBox.style.display = 'none';
-          return;
-        }
-        
-        matches.forEach(t => {
-          const opt = document.createElement('div');
-          opt.textContent = t;
-          opt.style.padding = '4px 6px';
-          opt.style.fontSize = '11px'; // Minial layout size
-          opt.style.cursor = 'pointer';
-          opt.style.color = 'var(--color-text-main)';
-          opt.addEventListener('mouseenter', () => {
-            opt.style.backgroundColor = 'var(--bg-hover, rgba(0,0,0,0.05))';
-          });
-          opt.addEventListener('mouseleave', () => {
-             opt.style.backgroundColor = 'transparent';
-          });
-          opt.addEventListener('mousedown', (e) => {
-            e.preventDefault(); 
-            topicInput.value = t;
-            suggestionBox.style.display = 'none';
-            topicInput.focus();
-          });
-          suggestionBox.appendChild(opt);
-        });
-        suggestionBox.style.display = 'block';
-      };
-
-      topicInput.addEventListener('input', () => renderSuggestions(topicInput.value));
-      topicInput.addEventListener('focus', () => renderSuggestions(topicInput.value));
-      topicInput.addEventListener('blur', () => {
-        setTimeout(() => { suggestionBox.style.display = 'none'; }, 100);
-      });
-
-      const folderSelect = document.createElement('select');
-      styleInput(folderSelect);
-      folderSelect.style.cursor = 'pointer';
-      
-      const defaultOpt = document.createElement('option');
-      defaultOpt.value = '';
-      defaultOpt.textContent = 'Inbox';
-      folderSelect.appendChild(defaultOpt);
-      
-      const folders = workspaceManager.getFolders();
-      folders.sort((a, b) => a.name.localeCompare(b.name));
-      folders.forEach(f => {
-          const opt = document.createElement('option');
-          opt.value = f.id;
-          opt.textContent = f.name;
-          folderSelect.appendChild(opt);
-      });
-
-      creationContainer.appendChild(titleInput);
-      creationContainer.appendChild(topicInputContainer);
-      creationContainer.appendChild(folderSelect);
-
-      treeContainer.insertBefore(creationContainer, nativeHeaderContainer.nextSibling);
-      
-      titleInput.focus();
-
-      const cleanup = () => {
-        if (creationContainer.parentNode) {
-          creationContainer.parentNode.removeChild(creationContainer);
-        }
-      };
-
-      const submit = async () => {
-        const title = titleInput.value.trim();
-        if (!title) return; // Block empty submission
-        const topic = topicInput.value.trim();
-        const folderId = folderSelect.value || null;
-        
-        cleanup();
-        
-        const result = await workspaceManager.createBoard(title, topic, folderId);
-        await this.app.loadNativeBoard(result.id);
-        await this.mount(); // Re-render tree
-      };
-
-      const handleKey = (e) => {
-        if (e.key === 'Escape') {
-          cleanup();
-          e.preventDefault();
-        } else if (e.key === 'Enter') {
-          if (e.isComposing) return; // Safe IME check
-          // If suggestion box is open, optionally let enter select it if we had keyboard navigation
-          // but for minimal implementation, enter just submits.
-          submit();
-          e.preventDefault();
-        }
-      };
-
-      titleInput.addEventListener('keydown', handleKey);
-      topicInput.addEventListener('keydown', handleKey);
-      
-      const handleBlur = (e) => {
-        setTimeout(() => {
-          if (document.activeElement !== titleInput && 
-              document.activeElement !== topicInput && 
-              document.activeElement !== folderSelect) {
-            cleanup();
-          }
-        }, 150);
-      };
-      titleInput.addEventListener('blur', handleBlur);
-      topicInput.addEventListener('blur', handleBlur);
-      folderSelect.addEventListener('blur', handleBlur);
+    newBoardBtn.addEventListener('click', () => {
+      this.showNewBoardInput();
     });
     actionsContainer.appendChild(newFolderBtn);
     actionsContainer.appendChild(newBoardBtn);
@@ -316,9 +146,6 @@ export class Explorer {
       
       const renderGroup = (folderId, titleText) => {
           const matchedBoards = nativeManifest.boards.filter(b => b.folderId === folderId || (!b.folderId && !folderId));
-          // Always render Inbox. Only render user folders if they exist, or keep them visible so they don't vanish when empty.
-          // The spec says "boards assigned to a folder render under that folder". 
-          // Empty folders should be visible to prove they exist.
           
           const headerContainer = document.createElement('div');
           headerContainer.style.display = 'flex';
@@ -334,10 +161,101 @@ export class Explorer {
           folderIcon.style.marginRight = '6px';
           folderIcon.style.opacity = '0.7';
           
-          headerContainer.appendChild(folderIcon);
-          headerContainer.appendChild(document.createTextNode(titleText));
-          treeContainer.appendChild(headerContainer);
+          const titleSpan = document.createElement('span');
+          titleSpan.textContent = titleText;
           
+          headerContainer.appendChild(folderIcon);
+          headerContainer.appendChild(titleSpan);
+          treeContainer.appendChild(headerContainer);
+
+          if (folderId !== null) {
+              headerContainer.classList.add('has-context-menu');
+              headerContainer.style.cursor = 'pointer';
+              headerContainer.addEventListener('contextmenu', (e) => {
+                  e.preventDefault();
+                  
+                  const handleNewBoard = () => {
+                      this.showNewBoardInput(folderId);
+                  };
+
+                  const handleRename = () => {
+                      const input = document.createElement('input');
+                      input.type = 'text';
+                      input.value = titleText;
+                      input.style.border = '1px solid #CBD5E1';
+                      input.style.background = '#FFFFFF';
+                      input.style.color = 'var(--color-text-main)';
+                      input.style.outline = 'none';
+                      input.style.borderRadius = '3px';
+                      input.style.padding = '0 4px';
+                      input.style.fontSize = 'inherit';
+                      input.style.boxShadow = 'inset 0 1px 2px rgba(0,0,0,0.05)';
+                      input.style.width = '120px';
+                      
+                      const commit = async () => {
+                          const newName = input.value.trim();
+                          if (newName && newName !== titleText) {
+                              const res = await workspaceManager.renameFolder(folderId, newName);
+                              if (res.success) {
+                                  if (this.app.propertiesPanel) this.app.propertiesPanel.softUpdate();
+                                  await this.mount();
+                              } else {
+                                  alert(res.reason || 'Failed to rename folder');
+                                  titleSpan.textContent = titleText;
+                              }
+                          } else {
+                              titleSpan.textContent = titleText;
+                          }
+                      };
+                      
+                      input.addEventListener('keydown', (ke) => {
+                          if (ke.key === 'Enter') {
+                              ke.preventDefault();
+                              input.blur();
+                          } else if (ke.key === 'Escape') {
+                              ke.preventDefault();
+                              input.value = titleText;
+                              input.blur();
+                          }
+                      });
+                      
+                      input.addEventListener('blur', commit);
+                      
+                      titleSpan.textContent = '';
+                      titleSpan.appendChild(input);
+                      input.focus();
+                      input.select();
+                  };
+
+                  const handleDelete = async () => {
+                      const res = await workspaceManager.deleteFolder(folderId);
+                      if (res.success) {
+                          if (this.app.propertiesPanel) this.app.propertiesPanel.softUpdate();
+                          await this.mount();
+                      } else {
+                          alert(res.reason || 'Failed to delete folder');
+                      }
+                  };
+                  
+                  ContextMenu.show(e.clientX, e.clientY, [
+                      { label: 'New Board...', disabled: false, onClick: handleNewBoard },
+                      { type: 'separator' },
+                      { label: 'Rename Folder...', disabled: false, onClick: handleRename },
+                      { label: 'Delete Folder...', disabled: false, onClick: () => {
+                          if (matchedBoards.length > 0) {
+                              alert('Cannot delete a folder that still contains boards. Please empty the folder first.');
+                          } else {
+                              if (confirm(`Are you sure you want to delete folder "${titleText}"?`)) {
+                                  handleDelete();
+                              }
+                          }
+                      }}
+                  ], () => {
+                      headerContainer.classList.remove('has-context-menu');
+                  });
+              });
+          }
+
           if (matchedBoards.length === 0) {
               const emptyEl = document.createElement('div');
               emptyEl.className = 'mock-tree-item';
@@ -350,7 +268,7 @@ export class Explorer {
           } else {
               for (const board of matchedBoards) {
                 const itemEl = this.createTreeItem(board, '📄', false);
-                itemEl.style.paddingLeft = '24px'; // indent slightly inside virtual folder
+                itemEl.style.paddingLeft = '24px';
                 
                 if (this.app.state.boardId === board.id) itemEl.classList.add('is-active');
                 
@@ -367,6 +285,8 @@ export class Explorer {
       for (const f of folders) {
           renderGroup(f.id, f.name);
       }
+
+
     } else {
       const emptyEl = document.createElement('div');
       emptyEl.className = 'mock-tree-item';
@@ -554,19 +474,264 @@ export class Explorer {
 
         itemEl.classList.add('has-context-menu');
         
-        ContextMenu.show(e.clientX, e.clientY, [
-          { label: 'Rename', disabled: isLegacy, onClick: handleRename },
-          { label: 'Open Folder', disabled: false, onClick: handleOpenFolder },
-          { label: 'Copy Path', disabled: false, onClick: handleCopyPath },
-          { type: 'separator', disabled: false },
-          { label: 'Delete', disabled: isLegacy, onClick: handleDelete }
-        ], () => {
+        const handleMoveToFolder = (e, itemEl) => {
+           const picker = document.createElement('div');
+           picker.className = 'explorer-context-menu';
+           picker.style.position = 'absolute';
+           picker.style.backgroundColor = 'var(--bg-layer-1, #E5E7EB)';
+           picker.style.border = '1px solid var(--border-color, #D1D5DB)';
+           picker.style.borderRadius = '6px';
+           picker.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
+           picker.style.padding = '4px 0';
+           picker.style.zIndex = '10000';
+           picker.style.minWidth = '140px';
+           picker.style.color = 'var(--color-text-main, #202124)';
+           picker.style.fontSize = '12px';
+
+           const rect = itemEl.getBoundingClientRect();
+           picker.style.left = `${rect.right + 4}px`;
+           picker.style.top = `${rect.top}px`;
+
+           const addOpt = (fId, fName) => {
+              const opt = document.createElement('div');
+              const isCurrent = board.folderId === fId || (!board.folderId && !fId);
+              opt.textContent = (isCurrent ? '✓ ' : '  ') + (fId ? '📁 ' : '📥 ') + fName;
+              opt.style.padding = '6px 12px';
+              opt.style.cursor = isCurrent ? 'default' : 'pointer';
+              opt.style.opacity = isCurrent ? '0.5' : '1';
+              opt.style.whiteSpace = 'nowrap';
+              
+              if (!isCurrent) {
+                 opt.addEventListener('mouseenter', () => opt.style.backgroundColor = 'var(--bg-hover, rgba(0,0,0,0.05))');
+                 opt.addEventListener('mouseleave', () => opt.style.backgroundColor = 'transparent');
+                 opt.addEventListener('click', async (evt) => {
+                    evt.stopPropagation();
+                    document.body.removeChild(picker);
+                    ContextMenu.hide();
+                    await workspaceManager.updateBoardFolder(board.id, fId);
+                    if (this.app.propertiesPanel) this.app.propertiesPanel.softUpdate();
+                    await this.mount();
+                 });
+              }
+              picker.appendChild(opt);
+           };
+
+           addOpt(null, 'Inbox');
+           const folders = workspaceManager.getFolders();
+           folders.sort((a,b) => a.name.localeCompare(b.name));
+           folders.forEach(f => addOpt(f.id, f.name));
+
+           document.body.appendChild(picker);
+
+           const closePicker = (ce) => {
+               if (!picker.contains(ce.target)) {
+                  if (picker.parentNode) document.body.removeChild(picker);
+                  document.removeEventListener('click', closePicker);
+               }
+           };
+           setTimeout(() => document.addEventListener('click', closePicker), 10);
+        };
+
+        const ctxItems = [];
+        ctxItems.push({ label: 'Rename', disabled: isLegacy, onClick: handleRename });
+        if (!isLegacy) {
+            ctxItems.push({ label: 'Move to Folder ⏵', keepOpen: true, onClick: handleMoveToFolder });
+        }
+        ctxItems.push({ label: 'Open Folder', disabled: false, onClick: handleOpenFolder });
+        ctxItems.push({ label: 'Copy Path', disabled: false, onClick: handleCopyPath });
+        ctxItems.push({ type: 'separator', disabled: false });
+        ctxItems.push({ label: 'Delete', disabled: isLegacy, onClick: handleDelete });
+
+        itemEl.classList.add('has-context-menu');
+        ContextMenu.show(e.clientX, e.clientY, ctxItems, () => {
           itemEl.classList.remove('has-context-menu');
         });
 
       });
 
       return itemEl;
+  }
+
+  showNewBoardInput(preselectedFolderId = null) {
+      if (document.getElementById('inline-board-create')) return;
+
+      const treeContainer = this.container.querySelector('.mock-tree');
+      const nativeHeaderContainer = treeContainer.firstElementChild; // Approximation: we insert it after header if we want to
+
+      const creationContainer = document.createElement('div');
+      creationContainer.id = 'inline-board-create';
+      creationContainer.style.padding = '8px 16px';
+      creationContainer.style.display = 'flex';
+      creationContainer.style.flexDirection = 'column';
+      creationContainer.style.gap = '4px';
+      creationContainer.style.borderBottom = '1px solid var(--border-color)';
+      creationContainer.style.background = 'rgba(0,0,0,0.02)';
+      creationContainer.style.position = 'relative';
+
+      const styleInput = (inp) => {
+          inp.style.border = '1px solid var(--border-color)';
+          inp.style.background = 'var(--bg-panel, #FFFFFF)';
+          inp.style.color = 'var(--color-text-main, #202124)';
+          inp.style.outline = 'none';
+          inp.style.borderRadius = '3px';
+          inp.style.padding = '4px 6px';
+          inp.style.fontSize = '12px';
+          inp.style.fontFamily = 'inherit';
+          inp.style.width = '100%';
+          inp.style.boxSizing = 'border-box';
+      };
+
+      const titleInput = document.createElement('input');
+      titleInput.type = 'text';
+      titleInput.placeholder = 'Board Title...';
+      styleInput(titleInput);
+      
+      const topicInputContainer = document.createElement('div');
+      topicInputContainer.style.position = 'relative';
+      topicInputContainer.style.width = '100%';
+
+      const topicInput = document.createElement('input');
+      topicInput.type = 'text';
+      topicInput.placeholder = 'Topic (optional)';
+      styleInput(topicInput);
+      topicInputContainer.appendChild(topicInput);
+      
+      const suggestionBox = document.createElement('div');
+      suggestionBox.style.display = 'none';
+      suggestionBox.style.position = 'absolute';
+      suggestionBox.style.top = '100%';
+      suggestionBox.style.left = '0';
+      suggestionBox.style.width = '100%';
+      suggestionBox.style.backgroundColor = 'var(--bg-panel, #FFFFFF)';
+      suggestionBox.style.border = '1px solid var(--border-color)';
+      suggestionBox.style.borderRadius = '3px';
+      suggestionBox.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+      suggestionBox.style.zIndex = '1000';
+      suggestionBox.style.maxHeight = '150px';
+      suggestionBox.style.overflowY = 'auto';
+      suggestionBox.style.marginTop = '2px';
+      topicInputContainer.appendChild(suggestionBox);
+
+      const topics = workspaceManager.getKnownBoardTopics();
+
+      const renderSuggestions = (query) => {
+        suggestionBox.innerHTML = '';
+        const q = query.toLowerCase().trim();
+        const matches = topics.filter(t => t.toLowerCase().includes(q));
+        if (matches.length === 0) {
+          suggestionBox.style.display = 'none';
+          return;
+        }
+        
+        matches.forEach(t => {
+          const opt = document.createElement('div');
+          opt.textContent = t;
+          opt.style.padding = '4px 6px';
+          opt.style.fontSize = '11px';
+          opt.style.cursor = 'pointer';
+          opt.style.color = 'var(--color-text-main)';
+          opt.addEventListener('mouseenter', () => {
+            opt.style.backgroundColor = 'var(--bg-hover, rgba(0,0,0,0.05))';
+          });
+          opt.addEventListener('mouseleave', () => {
+             opt.style.backgroundColor = 'transparent';
+          });
+          opt.addEventListener('mousedown', (e) => {
+            e.preventDefault(); 
+            topicInput.value = t;
+            suggestionBox.style.display = 'none';
+            topicInput.focus();
+          });
+          suggestionBox.appendChild(opt);
+        });
+        suggestionBox.style.display = 'block';
+      };
+
+      topicInput.addEventListener('input', () => renderSuggestions(topicInput.value));
+      topicInput.addEventListener('focus', () => renderSuggestions(topicInput.value));
+      topicInput.addEventListener('blur', () => {
+        setTimeout(() => { suggestionBox.style.display = 'none'; }, 100);
+      });
+
+      const folderSelect = document.createElement('select');
+      styleInput(folderSelect);
+      folderSelect.style.cursor = 'pointer';
+      
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = 'Inbox';
+      folderSelect.appendChild(defaultOpt);
+      
+      const folders = workspaceManager.getFolders();
+      folders.sort((a, b) => a.name.localeCompare(b.name));
+      folders.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f.id;
+          opt.textContent = f.name;
+          folderSelect.appendChild(opt);
+      });
+
+      if (preselectedFolderId) {
+          folderSelect.value = preselectedFolderId;
+      }
+
+      creationContainer.appendChild(titleInput);
+      creationContainer.appendChild(topicInputContainer);
+      creationContainer.appendChild(folderSelect);
+
+      if (nativeHeaderContainer && nativeHeaderContainer.nextSibling) {
+          treeContainer.insertBefore(creationContainer, nativeHeaderContainer.nextSibling);
+      } else {
+          treeContainer.appendChild(creationContainer);
+      }
+      
+      titleInput.focus();
+
+      const cleanup = () => {
+        if (creationContainer.parentNode) {
+          creationContainer.parentNode.removeChild(creationContainer);
+        }
+      };
+
+      const submit = async () => {
+        const title = titleInput.value.trim();
+        if (!title) return; // Block empty submission
+        const topic = topicInput.value.trim();
+        const folderId = folderSelect.value || null;
+        
+        cleanup();
+        
+        const result = await workspaceManager.createBoard(title, topic, folderId);
+        await this.app.loadNativeBoard(result.id);
+        await this.mount(); // Re-render tree
+      };
+
+      const handleKey = (e) => {
+        if (e.key === 'Escape') {
+          cleanup();
+          e.preventDefault();
+        } else if (e.key === 'Enter') {
+          if (e.isComposing) return; // Safe IME check
+          submit();
+          e.preventDefault();
+        }
+      };
+
+      titleInput.addEventListener('keydown', handleKey);
+      topicInput.addEventListener('keydown', handleKey);
+      
+      const handleBlur = (e) => {
+        setTimeout(() => {
+          if (document.activeElement !== titleInput && 
+              document.activeElement !== topicInput && 
+              document.activeElement !== folderSelect) {
+            cleanup();
+          }
+        }, 150);
+      };
+      titleInput.addEventListener('blur', handleBlur);
+      topicInput.addEventListener('blur', handleBlur);
+      folderSelect.addEventListener('blur', handleBlur);
   }
 
   highlightItem(container, targetEl) {
