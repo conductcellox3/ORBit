@@ -13,6 +13,7 @@ export class NativeWorkspaceManager {
     this.manifestName = 'boards.json';
     this.manifest = null;
     this.crossBoardLinkIndex = new Map(); // Map<`${sourceBoardId}::${sourceNoteId}`, Array<{boardId, noteId, boardTitle, snapshotKind}>>
+    this.globalAdjacencyGraph = new Map(); // Map<fromBoardId, Map<toBoardId, { count }>>
   }
 
   async init() {
@@ -423,11 +424,124 @@ export class NativeWorkspaceManager {
         // skip failed boards
       }
     }
+    this.rebuildGlobalAdjacencyGraph();
   }
 
   getNoteReferences(boardId, noteId) {
     const compositeKey = `${boardId}::${noteId}`;
     return this.crossBoardLinkIndex.get(compositeKey) || [];
+  }
+
+  rebuildGlobalAdjacencyGraph() {
+    this.globalAdjacencyGraph.clear();
+    for (const [key, refs] of this.crossBoardLinkIndex.entries()) {
+      const sourceBoardId = key.split('::')[0];
+      for (const ref of refs) {
+        const fromBoard = ref.boardId;
+        const toBoard = sourceBoardId;
+        
+        let targets = this.globalAdjacencyGraph.get(fromBoard);
+        if (!targets) {
+          targets = new Map();
+          this.globalAdjacencyGraph.set(fromBoard, targets);
+        }
+        let relation = targets.get(toBoard);
+        if (!relation) {
+          relation = { count: 0 };
+          targets.set(toBoard, relation);
+        }
+        relation.count++;
+      }
+    }
+  }
+
+  getBoardTitle(boardId) {
+    if (!this.manifest) return 'Unknown';
+    const b = this.manifest.boards.find(b => b.id === boardId);
+    return b ? b.title : 'Unknown';
+  }
+
+  getBoardRelations(boardId, localNotesMap) {
+    const direct = new Map(); // targetBoardId -> { boardId, title, count, incoming: 0, outgoing: 0 }
+
+    const addDirect = (tBoardId, isIncoming) => {
+       if (tBoardId === boardId) return; // avoid self
+       let rec = direct.get(tBoardId);
+       if (!rec) {
+         rec = { boardId: tBoardId, title: this.getBoardTitle(tBoardId), count: 0, incoming: 0, outgoing: 0 };
+         direct.set(tBoardId, rec);
+       }
+       rec.count++;
+       if (isIncoming) rec.incoming++;
+       else rec.outgoing++;
+    };
+
+    // 1. Incoming (another board OUTGOING to us)
+    // We check who has us as a target
+    // Wait, globalAdjacencyGraph has Map<from, to>.
+    // So Incoming = who maps TO us.
+    for (const [fromId, targetsMap] of this.globalAdjacencyGraph.entries()) {
+      if (targetsMap.has(boardId)) {
+        const c = targetsMap.get(boardId).count;
+        for (let i = 0; i < c; i++) addDirect(fromId, true);
+      }
+    }
+
+    // 2. Outgoing (we OUTGOING to another board)
+    const ourTargets = this.globalAdjacencyGraph.get(boardId);
+    if (ourTargets) {
+       for (const [toId, relation] of ourTargets.entries()) {
+          for (let i = 0; i < relation.count; i++) addDirect(toId, false);
+       }
+    }
+
+    const directRelations = Array.from(direct.values());
+    directRelations.sort((a, b) => b.count - a.count || a.title.localeCompare(b.title));
+    return directRelations;
+  }
+
+  getTwoHopRelations(boardId, directRelationsArray) {
+    const directSet = new Set(directRelationsArray.map(r => r.boardId));
+    const Candidates = new Map(); // targetId -> { boardId, title, score, viaList: [] }
+
+    const addCandidate = (tId, viaId, strength) => {
+       if (tId === boardId || directSet.has(tId)) return;
+       let cand = Candidates.get(tId);
+       if (!cand) {
+         cand = { boardId: tId, title: this.getBoardTitle(tId), score: 0, viaList: new Set() };
+         Candidates.set(tId, cand);
+       }
+       cand.score += strength;
+       cand.viaList.add(this.getBoardTitle(viaId));
+    };
+
+    for (const d of directRelationsArray) {
+      // Boards that point to `d`
+      for (const [fromId, targetsMap] of this.globalAdjacencyGraph.entries()) {
+        if (targetsMap.has(d.boardId)) {
+          addCandidate(fromId, d.boardId, targetsMap.get(d.boardId).count);
+        }
+      }
+      
+      // Boards `d` points to
+      const dTargets = this.globalAdjacencyGraph.get(d.boardId);
+      if (dTargets) {
+        for (const [toId, relation] of dTargets.entries()) {
+          addCandidate(toId, d.boardId, relation.count);
+        }
+      }
+    }
+    
+    // Flatten, format, and sort by score
+    const result = Array.from(Candidates.values()).map(c => ({
+      boardId: c.boardId,
+      title: c.title,
+      score: c.score,
+      via: Array.from(c.viaList).join(', ')
+    }));
+    
+    result.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));
+    return result;
   }
 
   updateLinkIndexIncremental(boardId, boardTitle, updatedNotesMap) {
@@ -457,6 +571,7 @@ export class NativeWorkspaceManager {
         });
       }
     }
+    this.rebuildGlobalAdjacencyGraph();
   }
 }
 

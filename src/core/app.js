@@ -12,6 +12,7 @@ export class App {
     this.selection = new Selection();
     this.persistence = new Persistence(this.state, this.history);
     this.pendingFocusNoteId = null;
+    this.activePeek = null;
   }
 
   async init() {
@@ -27,9 +28,26 @@ export class App {
     return await this.persistence.save();
   }
 
-  async loadNativeBoard(boardId) {
+  async loadNativeBoard(boardId, options = {}) {
     if (this.state.sourceType === 'native' && this.state.boardId === boardId) {
+      if (options.restoreViewport) {
+        this.state.canvas.panX = options.restoreViewport.panX;
+        this.state.canvas.panY = options.restoreViewport.panY;
+        this.state.canvas.zoom = options.restoreViewport.zoom;
+        if (this.onBoardLoad) this.onBoardLoad(this.state.canvas);
+        
+        this.selection.clear();
+        for (const id of options.restoreViewport.selectedIds) {
+          if (this.state.notes.has(id)) this.selection.select(id, 'note');
+          else if (this.state.frames.has(id)) this.selection.select(id, 'frame');
+        }
+      }
       return;
+    }
+    
+    if (!options.isPeek && this.activePeek) {
+       this.activePeek = null;
+       if (this.onPeekStateChange) this.onPeekStateChange(null);
     }
     
     if (this.state.boardId) {
@@ -44,11 +62,52 @@ export class App {
     this.selection.clear();
     await this.persistence.loadNativeBoard(boardId);
     
+    if (options.restoreViewport) {
+      this.state.canvas.panX = options.restoreViewport.panX;
+      this.state.canvas.panY = options.restoreViewport.panY;
+      this.state.canvas.zoom = options.restoreViewport.zoom;
+      
+      this.selection.clear();
+      for (const id of options.restoreViewport.selectedIds) {
+        if (this.state.notes.has(id)) this.selection.select(id, 'note');
+        else if (this.state.frames.has(id)) this.selection.select(id, 'frame');
+      }
+    }
+    
     if (this.onBoardChanged) this.onBoardChanged(this.state.boardId);
     if (this.onTitleChanged) this.onTitleChanged(this.state.title);
     if (this.onBoardLoad) this.onBoardLoad(this.state.canvas);
     
     this.state.checkLinkedNotesForUpdates();
+  }
+
+  async peekBoard(boardId) {
+    if (!boardId) return;
+
+    if (!this.activePeek) {
+        this.activePeek = {
+           originBoardId: this.state.boardId,
+           originTitle: this.state.title,
+           panX: this.state.canvas.panX,
+           panY: this.state.canvas.panY,
+           zoom: this.state.canvas.zoom,
+           selectedIds: Array.from(this.selection.selectedIds)
+        };
+    }
+    
+    await this.loadNativeBoard(boardId, { isPeek: true });
+    if (this.onPeekStateChange) this.onPeekStateChange(this.activePeek);
+  }
+
+  async returnFromPeek() {
+     if (!this.activePeek) return;
+     const attemptRestore = { ...this.activePeek };
+     this.activePeek = null;
+     if (this.onPeekStateChange) this.onPeekStateChange(null);
+     
+     if (attemptRestore.originBoardId) {
+        await this.loadNativeBoard(attemptRestore.originBoardId, { restoreViewport: attemptRestore });
+     }
   }
 
   async loadLegacyBoard(legacySnapshot) {

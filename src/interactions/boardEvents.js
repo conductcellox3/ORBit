@@ -585,6 +585,17 @@ export class BoardEvents {
         }
       }
       
+      if (e.key === 'Escape') {
+        const tag = document.activeElement ? document.activeElement.tagName : '';
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !document.activeElement.isContentEditable) {
+           if (this.app.activePeek) {
+             this.app.returnFromPeek();
+           } else {
+             this.app.selection.clear();
+           }
+        }
+      }
+      
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (this.app.selection.selectedIds.size > 0) {
           for (const id of Array.from(this.app.selection.selectedIds)) {

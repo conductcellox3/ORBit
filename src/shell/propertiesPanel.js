@@ -232,6 +232,141 @@ export class PropertiesPanel {
     }
 
     this.bodyEl.appendChild(container);
+    
+    if (!isLegacy && this.app.state.boardId) {
+       this.renderBoardRelations(container);
+    }
+  }
+
+  renderBoardRelations(container) {
+     const direct = workspaceManager.getBoardRelations(this.app.state.boardId, this.app.state.notes);
+     
+     const relHeader = document.createElement('div');
+     relHeader.textContent = 'Directly Related Boards';
+     relHeader.style.fontSize = '10px';
+     relHeader.style.textTransform = 'uppercase';
+     relHeader.style.color = 'var(--color-text-muted)';
+     relHeader.style.margin = '20px 0 8px 0';
+     container.appendChild(relHeader);
+     
+     if (direct.length === 0) {
+        const empty = document.createElement('div');
+        empty.textContent = 'No directly related boards';
+        empty.style.fontSize = '11px';
+        empty.style.color = 'var(--color-text-muted)';
+        empty.style.fontStyle = 'italic';
+        container.appendChild(empty);
+     } else {
+        const listContainer = document.createElement('div');
+        listContainer.style.display = 'flex';
+        listContainer.style.flexDirection = 'column';
+        listContainer.style.gap = '6px';
+        container.appendChild(listContainer);
+        
+        direct.forEach(d => {
+           let desc = `${d.count} link${d.count > 1 ? 's' : ''}`;
+           if (d.incoming > 0 && d.outgoing > 0) desc += ', Both';
+           else if (d.incoming > 0) desc += ', Incoming';
+           else if (d.outgoing > 0) desc += ', Outgoing';
+           listContainer.appendChild(this.createRelationRow(d.boardId, d.title, desc));
+        });
+     }
+     
+     const twoHop = workspaceManager.getTwoHopRelations(this.app.state.boardId, direct);
+     const hopHeader = document.createElement('div');
+     hopHeader.textContent = 'Possibly Related (2-hop)';
+     hopHeader.style.fontSize = '10px';
+     hopHeader.style.textTransform = 'uppercase';
+     hopHeader.style.color = 'var(--color-text-muted)';
+     hopHeader.style.margin = '20px 0 8px 0';
+     container.appendChild(hopHeader);
+     
+     if (twoHop.length === 0) {
+        const empty = document.createElement('div');
+        empty.textContent = 'No 2-hop suggestions';
+        empty.style.fontSize = '11px';
+        empty.style.color = 'var(--color-text-muted)';
+        empty.style.fontStyle = 'italic';
+        container.appendChild(empty);
+     } else {
+        const listContainer = document.createElement('div');
+        listContainer.style.display = 'flex';
+        listContainer.style.flexDirection = 'column';
+        listContainer.style.gap = '6px';
+        container.appendChild(listContainer);
+        
+        twoHop.slice(0, 5).forEach(c => {
+           listContainer.appendChild(this.createRelationRow(c.boardId, c.title, `via ${c.via}`));
+        });
+     }
+  }
+
+  createRelationRow(targetBoardId, title, desc) {
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.alignItems = 'center';
+    row.style.justifyContent = 'space-between';
+    row.style.padding = '6px 8px';
+    row.style.background = 'var(--bg-layer-1)';
+    row.style.borderRadius = '4px';
+    row.style.border = '1px solid var(--border-color)';
+
+    const info = document.createElement('div');
+    info.style.display = 'flex';
+    info.style.flexDirection = 'column';
+    info.style.overflow = 'hidden';
+
+    const titleEl = document.createElement('span');
+    titleEl.textContent = title;
+    titleEl.style.fontSize = '12px';
+    titleEl.style.color = 'var(--color-text-main)';
+    titleEl.style.whiteSpace = 'nowrap';
+    titleEl.style.overflow = 'hidden';
+    titleEl.style.textOverflow = 'ellipsis';
+
+    const descEl = document.createElement('span');
+    descEl.textContent = desc;
+    descEl.style.fontSize = '10px';
+    descEl.style.color = 'var(--color-text-muted)';
+    descEl.style.marginTop = '2px';
+
+    info.appendChild(titleEl);
+    info.appendChild(descEl);
+
+    const actions = document.createElement('div');
+    actions.style.display = 'flex';
+    actions.style.gap = '4px';
+
+    const btnStyle = "padding: 2px 6px; font-size: 10px; border-radius: 3px; cursor: pointer; border: 1px solid var(--border-color); background: transparent; color: var(--color-text-main); white-space: nowrap;";
+
+    const peekBtn = document.createElement('button');
+    peekBtn.textContent = 'Peek';
+    peekBtn.style.cssText = btnStyle;
+    peekBtn.title = "Briefly inspect this board temporarily";
+    peekBtn.addEventListener('mouseenter', () => peekBtn.style.background = 'var(--bg-hover)');
+    peekBtn.addEventListener('mouseleave', () => peekBtn.style.background = 'transparent');
+    peekBtn.onclick = () => {
+      if (this.app.peekBoard) this.app.peekBoard(targetBoardId);
+    };
+
+    const openBtn = document.createElement('button');
+    openBtn.textContent = '↗ Open';
+    openBtn.style.cssText = btnStyle;
+    openBtn.title = "Open this board normally";
+    openBtn.addEventListener('mouseenter', () => openBtn.style.background = 'var(--bg-hover)');
+    openBtn.addEventListener('mouseleave', () => openBtn.style.background = 'transparent');
+    openBtn.onclick = () => {
+      // Normal open cancels peek inside loadNativeBoard dynamically, but safe to just load
+      if (this.app.loadNativeBoard) this.app.loadNativeBoard(targetBoardId);
+    };
+
+    actions.appendChild(peekBtn);
+    actions.appendChild(openBtn);
+
+    row.appendChild(info);
+    row.appendChild(actions);
+
+    return row;
   }
 
   renderInspectMode(id, type) {
