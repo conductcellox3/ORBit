@@ -320,6 +320,19 @@ export class NativeWorkspaceManager {
     const absolutePath = await resolve(boardPath, relativeSrc);
     return convertFileSrc(absolutePath);
   }
+
+  async getAssetFolderPath(boardId) {
+    const boardPath = await this.resolveBoardPath(boardId);
+    const { resolve } = await import('@tauri-apps/api/path');
+    return await resolve(boardPath, 'assets', 'images');
+  }
+
+  async getAbsoluteAssetPath(boardId, relativeSrc) {
+    if (!relativeSrc || relativeSrc.startsWith('http') || relativeSrc.startsWith('data:')) return null;
+    const boardPath = await this.resolveBoardPath(boardId);
+    const { resolve } = await import('@tauri-apps/api/path');
+    return await resolve(boardPath, relativeSrc);
+  }
 }
 
 export const workspaceManager = new NativeWorkspaceManager();

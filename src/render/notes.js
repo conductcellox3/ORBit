@@ -100,6 +100,13 @@ export class NoteRenderer {
       img.style.minHeight = '0';
       img.style.objectFit = 'contain';
       
+      img.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        this.app.imageViewerSrc = img.src;
+        this.app.imageViewer.open(note);
+      });
+      
       // Set fallback to avoid breaking legacy layouts if image files are missing
       img.onerror = () => {
         el.innerHTML = '';

@@ -5,9 +5,11 @@ import { EdgeDrawInteraction } from './interactions/edgeDraw.js';
 import { BoardEvents } from './interactions/boardEvents.js';
 
 import { ShellLayout } from './shell/layout.js';
+import { ImageViewer } from './render/imageViewer.js';
 
 async function bootstrap() {
   const app = new App();
+  app.imageViewer = new ImageViewer(app);
   await app.init();
   
   const shell = new ShellLayout(app);

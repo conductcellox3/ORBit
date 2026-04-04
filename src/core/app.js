@@ -92,4 +92,41 @@ export class App {
       this.onInactiveTabTitleChanged(boardId, type, newTitle);
     }
   }
+
+  jumpToNoteCenter(noteId) {
+    const note = this.state.notes.get(noteId);
+    if (!note) return;
+
+    this.selection.clear();
+    this.selection.select(noteId, 'note');
+
+    const zoom = this.state.canvas.zoom || 1;
+    const cw = window.innerWidth;
+    const ch = window.innerHeight;
+
+    let w = note.width || 400;
+    let h = note.height;
+    
+    // Attempt DOM read for true layout size including auto-height
+    const el = document.querySelector(`.orbit-note[data-id="${noteId}"]`);
+    if (el) {
+      w = el.offsetWidth;
+      h = el.offsetHeight;
+    }
+    if (!h) h = 300;
+
+    const centerX = note.x + w / 2;
+    const centerY = note.y + h / 2;
+
+    const newOffsetX = cw / 2 - centerX * zoom;
+    const newOffsetY = ch / 2 - centerY * zoom;
+
+    this.state.canvas.panX = newOffsetX;
+    this.state.canvas.panY = newOffsetY;
+    this.state.canvas.zoom = zoom;
+    
+    if (this.onBoardLoad) {
+      this.onBoardLoad(this.state.canvas);
+    }
+  }
 }
