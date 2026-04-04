@@ -337,8 +337,11 @@ export class PropertiesPanel {
       if (this.exportIncludeMeta === undefined) {
           this.exportIncludeMeta = true; // Default behavior
       }
+      if (this.exportMode === undefined) {
+          this.exportMode = 'spatial';
+      }
 
-      const { markdown, assets } = BoardMarkdown.serialize(this.app.state, { includeMeta: this.exportIncludeMeta });
+      const { markdown } = BoardMarkdown.serialize(this.app.state, { includeMeta: this.exportIncludeMeta, mode: this.exportMode });
       this.bodyEl.innerHTML = '';
 
       const container = document.createElement('div');
@@ -380,7 +383,40 @@ export class PropertiesPanel {
       metaToggleRow.appendChild(metaCheck);
       metaToggleRow.appendChild(metaLabel);
 
+      const modeToggleRow = document.createElement('div');
+      modeToggleRow.style.display = 'flex';
+      modeToggleRow.style.alignItems = 'center';
+      modeToggleRow.style.gap = '16px';
+      modeToggleRow.style.fontSize = '11px';
+      modeToggleRow.style.color = 'var(--color-text-main)';
+
+      const createRadio = (val, labelStr) => {
+          const label = document.createElement('label');
+          label.style.display = 'flex';
+          label.style.alignItems = 'center';
+          label.style.gap = '4px';
+          label.style.cursor = 'pointer';
+          const radio = document.createElement('input');
+          radio.type = 'radio';
+          radio.name = 'md-export-mode';
+          radio.value = val;
+          radio.checked = this.exportMode === val;
+          radio.onchange = (e) => {
+              if (e.target.checked) {
+                  this.exportMode = val;
+                  this.renderMarkdownMode();
+              }
+          };
+          label.appendChild(radio);
+          label.appendChild(document.createTextNode(labelStr));
+          return label;
+      };
+
+      modeToggleRow.appendChild(createRadio('spatial', 'Spatial Mode'));
+      modeToggleRow.appendChild(createRadio('flow', 'Flow Mode'));
+
       controlsRow.appendChild(exportBtn);
+      controlsRow.appendChild(modeToggleRow);
       controlsRow.appendChild(metaToggleRow);
 
       exportBtn.onclick = async () => {
@@ -398,27 +434,6 @@ export class PropertiesPanel {
          if (filepath) {
             try {
                await writeTextFile(filepath, markdown);
-
-               if (assets.length > 0) {
-                  const dir = await dirname(filepath);
-                  const baseAssetsFolderName = (this.app.state.slug || 'board') + '.assets';
-                  const assetsDir = await join(dir, baseAssetsFolderName);
-
-                  try { await mkdir(assetsDir, { recursive: true }); } catch (e) {}
-
-                  for (const asset of assets) {
-                     if (asset.src && asset.src.startsWith('assets://')) {
-                        const boardDir = await workspaceManager.resolveBoardPath(this.app.state.boardId);
-                        const sourceLocalPath = await join(boardDir, asset.src.replace('assets://', ''));
-                        const targetPath = await join(assetsDir, asset.suggestedFilename);
-                        try {
-                           await copyFile(sourceLocalPath, targetPath);
-                        } catch (e) {
-                           console.error("Failed to copy image: ", sourceLocalPath, e);
-                        }
-                     }
-                  }
-               }
             } catch (err) {
                console.error("Export failure:", err);
             }
