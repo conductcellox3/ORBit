@@ -263,8 +263,7 @@ export class BoardEvents {
     container.addEventListener('dblclick', (e) => {
       if (e.target.id === 'canvas-container' || e.target.id === 'edge-layer') {
         const coords = this.canvas.viewport.screenToCanvas(e.clientX, e.clientY);
-        this.app.state.addNote(coords.x - 60, coords.y - 20, '');
-        this.app.commitHistory();
+        this.app.createAndFocusNote(coords.x - 60, coords.y - 20, '');
       }
     });
 
@@ -282,6 +281,28 @@ export class BoardEvents {
     }, { passive: false });
 
     window.addEventListener('keydown', (e) => {
+      // Capture Flow chaining (Ctrl+Enter / Ctrl+Shift+Enter) allowed even if inside editor
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        if (e.isComposing) return;
+        
+        const active = document.activeElement;
+        // Do not intercept if inside search UI or properties panel (to avoid conflicts)
+        if (active && (active.closest('.orbit-search-overlay') || active.closest('.orbit-properties'))) {
+          return;
+        }
+
+        e.preventDefault();
+        
+        // If we are currently inside a note editor, we must blur it to save its text first
+        if (active && active.classList.contains('orbit-note-content')) {
+          active.blur(); 
+        }
+
+        const withEdge = e.shiftKey;
+        this.app.createNextNoteFromSelection(withEdge);
+        return;
+      }
+
       if (document.activeElement.isContentEditable) return;
 
       if (e.ctrlKey || e.metaKey) {

@@ -11,6 +11,7 @@ export class App {
     this.history = new History(this.state);
     this.selection = new Selection();
     this.persistence = new Persistence(this.state, this.history);
+    this.pendingFocusNoteId = null;
   }
 
   async init() {
@@ -142,5 +143,77 @@ export class App {
     if (this.onToggleSearch) {
       this.onToggleSearch();
     }
+  }
+
+  createAndFocusNote(x, y, text = '') {
+    if (this.state.sourceType === 'legacy') return null;
+    const newNoteId = this.state.addNote(x, y, text);
+    this.pendingFocusNoteId = newNoteId;
+    this.selection.clear();
+    this.selection.select(newNoteId, 'note');
+    this.commitHistory();
+    return newNoteId;
+  }
+
+  createNextNoteFromSelection(withEdge = false) {
+    if (this.state.sourceType === 'legacy') return;
+
+    let targetX, targetY, parentFrameId = null;
+    let anchorNodeId = null;
+    let anchorType = null;
+    
+    // Determine spatial anchor
+    if (this.selection.selectedIds.size === 1) {
+      const id = Array.from(this.selection.selectedIds)[0];
+      const type = this.selection.type;
+      let obj = type === 'note' ? this.state.notes.get(id) : this.state.frames.get(id);
+      
+      if (obj) {
+        anchorNodeId = id;
+        anchorType = type;
+        const w = obj.width || (type === 'note' && (obj.type === 'image' || obj.isImage) ? 300 : 120);
+        
+        targetX = obj.x + w + 40;  // Use gap of 40px to the right
+        targetY = obj.y;
+        
+        if (type === 'note') {
+           parentFrameId = obj.parentFrameId || null;
+        }
+      }
+    }
+    
+    if (targetX === undefined) {
+      // Fallback: Viewport center, we try to use the canvas container safely
+      const container = document.getElementById('canvas-container');
+      if (container && this.state.canvas) {
+        const rect = container.getBoundingClientRect();
+        const screenX = rect.width / 2;
+        const screenY = rect.height / 2;
+        targetX = (screenX - this.state.canvas.panX) / this.state.canvas.zoom;
+        targetY = (screenY - this.state.canvas.panY) / this.state.canvas.zoom;
+      } else {
+        targetX = 100;
+        targetY = 100;
+      }
+    }
+
+    const newNoteId = this.state.addNote(targetX, targetY, '');
+    
+    if (parentFrameId) {
+      const note = this.state.notes.get(newNoteId);
+      if (note) note.parentFrameId = parentFrameId;
+    }
+
+    // Connect Edge
+    if (withEdge && anchorNodeId && anchorType !== 'frame') {
+      // Explicitly ignoring frames for auto-edge
+      this.state.addEdge(anchorNodeId, newNoteId);
+    }
+
+    this.pendingFocusNoteId = newNoteId;
+    this.selection.clear();
+    this.selection.select(newNoteId, 'note');
+    
+    this.commitHistory();
   }
 }

@@ -79,6 +79,31 @@ export class NoteRenderer {
 
       el.classList.toggle('is-selected', isNoteSelection && this.app.selection.has(id));
     }
+
+    if (this.app.pendingFocusNoteId) {
+      const focusId = this.app.pendingFocusNoteId;
+      this.app.pendingFocusNoteId = null;
+      
+      requestAnimationFrame(() => {
+        const el = this.elements.get(focusId);
+        if (el) {
+          const contentEl = el.querySelector('.orbit-note-content');
+          if (contentEl) {
+            contentEl.focus();
+            
+            // Move cursor to the end
+            if (contentEl.childNodes.length > 0) {
+              const range = document.createRange();
+              const sel = window.getSelection();
+              range.selectNodeContents(contentEl);
+              range.collapse(false);
+              sel.removeAllRanges();
+              sel.addRange(range);
+            }
+          }
+        }
+      });
+    }
   }
 
   createNodeElement(note) {
