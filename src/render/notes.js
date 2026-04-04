@@ -32,12 +32,46 @@ export class NoteRenderer {
       if (note.width !== undefined) el.style.width = `${note.width}px`;
       else el.style.removeProperty('width');
       
-      if (note.height !== undefined) el.style.height = `${note.height}px`;
-      else el.style.removeProperty('height');
+      if (note.type === 'image' || note.isImage) {
+        el.style.height = 'auto';
+      } else {
+        if (note.height !== undefined) el.style.height = `${note.height}px`;
+        else el.style.removeProperty('height');
+      }
       
-      const contentEl = el.querySelector('.orbit-note-content');
-      if (contentEl && document.activeElement !== contentEl) {
-        contentEl.textContent = note.text;
+      if (note.type === 'image' || note.isImage) {
+        let captionEl = el.querySelector('.orbit-note-caption');
+        if (note.caption) {
+          if (!captionEl) {
+            captionEl = document.createElement('div');
+            captionEl.className = 'orbit-note-caption';
+            captionEl.style.fontSize = '12px';
+            captionEl.style.textAlign = 'center';
+            captionEl.style.whiteSpace = 'nowrap';
+            captionEl.style.overflow = 'hidden';
+            captionEl.style.textOverflow = 'ellipsis';
+            captionEl.style.maxWidth = '100%';
+            captionEl.style.color = 'var(--color-text-muted, #64748b)';
+            captionEl.style.flexShrink = '0';
+            captionEl.style.cursor = 'text';
+
+            captionEl.addEventListener('dblclick', (e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              this.interactions.spawnCaptionInput(note.id);
+            });
+
+            el.appendChild(captionEl);
+          }
+          captionEl.textContent = note.caption;
+        } else if (captionEl) {
+          captionEl.remove();
+        }
+      } else {
+        const contentEl = el.querySelector('.orbit-note-content');
+        if (contentEl && document.activeElement !== contentEl) {
+          contentEl.textContent = note.text;
+        }
       }
 
       if (note.colorKey) el.dataset.color = note.colorKey;
@@ -54,12 +88,16 @@ export class NoteRenderer {
     
     if (note.type === 'image' || note.isImage) {
       el.classList.add('is-image-note');
+      el.style.display = 'flex';
+      el.style.flexDirection = 'column';
+      el.style.gap = '8px';
       
       const img = document.createElement('img');
       img.className = 'orbit-note-image';
       img.alt = note.caption || 'Image';
       img.style.width = '100%';
-      img.style.height = '100%';
+      img.style.flex = '1';
+      img.style.minHeight = '0';
       img.style.objectFit = 'contain';
       
       // Set fallback to avoid breaking legacy layouts if image files are missing
@@ -148,9 +186,21 @@ export class NoteRenderer {
         caption.className = 'orbit-note-caption';
         caption.textContent = note.caption;
         caption.style.fontSize = '12px';
-        caption.style.opacity = '0.7';
-        caption.style.marginTop = '4px';
         caption.style.textAlign = 'center';
+        caption.style.whiteSpace = 'nowrap';
+        caption.style.overflow = 'hidden';
+        caption.style.textOverflow = 'ellipsis';
+        caption.style.maxWidth = '100%';
+        caption.style.color = 'var(--color-text-muted, #64748b)';
+        caption.style.flexShrink = '0';
+        caption.style.cursor = 'text';
+
+        caption.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          this.interactions.spawnCaptionInput(note.id);
+        });
+
         el.appendChild(caption);
       }
     } else {

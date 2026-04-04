@@ -11,6 +11,9 @@ export class BoardEvents {
     this.isPanning = false;
     this.panStartX = 0;
     this.panStartY = 0;
+    
+    this.lastCursorScreenX = null;
+    this.lastCursorScreenY = null;
   }
 
   bind() {
@@ -78,26 +81,57 @@ export class BoardEvents {
           items.push({
           label: 'Change Color...',
           onClick: () => {
-            const colors = ['neutral', 'blue', 'cyan', 'green', 'yellow', 'red'];
-            const colorItems = colors.map(c => ({
-              label: c === 'neutral' ? 'None (Default)' : c.charAt(0).toUpperCase() + c.slice(1),
-              onClick: () => {
-                for (const id of this.app.selection.selectedIds) {
-                  if (this.app.selection.type === 'note') {
-                    this.app.state.setNoteColor(id, c);
-                  } else if (this.app.selection.type === 'frame') {
-                    this.app.state.setFrameColor(id, c);
-                  }
-                }
-                this.app.commitHistory();
-              }
-            }));
-            setTimeout(() => {
-               ContextMenu.show(e.clientX, e.clientY, colorItems);
-            }, 10);
+             // ... [already intact inside]
+             const colors = ['neutral', 'blue', 'cyan', 'green', 'yellow', 'red'];
+             const colorItems = colors.map(c => ({
+               label: c === 'neutral' ? 'None (Default)' : c.charAt(0).toUpperCase() + c.slice(1),
+               onClick: () => {
+                 for (const id of this.app.selection.selectedIds) {
+                   if (this.app.selection.type === 'note') {
+                     this.app.state.setNoteColor(id, c);
+                   } else if (this.app.selection.type === 'frame') {
+                     this.app.state.setFrameColor(id, c);
+                   }
+                 }
+                 this.app.commitHistory();
+               }
+             }));
+             setTimeout(() => { ContextMenu.show(e.clientX, e.clientY, colorItems); }, 10);
           }
         });
         }
+        
+        let hasImage = false;
+        if (targetType === 'note') {
+          for (const id of this.app.selection.selectedIds) {
+            const note = this.app.state.notes.get(id);
+            if (note && (note.type === 'image' || note.isImage)) {
+              hasImage = true;
+              break;
+            }
+          }
+        }
+
+        if (hasImage && this.app.selection.selectedIds.size === 1) {
+          items.push({
+            label: 'Edit Caption...',
+            onClick: () => {
+              this.spawnCaptionInput(targetId);
+            }
+          });
+        }
+        
+        items.push({ type: 'separator' });
+        items.push({
+          label: 'Delete',
+          onClick: () => {
+            for (const id of Array.from(this.app.selection.selectedIds)) {
+              this.app.state.deleteNode(id);
+            }
+            this.app.selection.clear();
+            this.app.commitHistory();
+          }
+        });
       }
 
       if (items.length > 0) {
@@ -137,6 +171,9 @@ export class BoardEvents {
     });
 
     container.addEventListener('pointermove', (e) => {
+      this.lastCursorScreenX = e.clientX;
+      this.lastCursorScreenY = e.clientY;
+
       if (this.isPanning) {
         const dx = e.clientX - this.panStartX;
         const dy = e.clientY - this.panStartY;
@@ -312,18 +349,30 @@ export class BoardEvents {
             const relativeSrc = await workspaceManager.saveBoardAsset(this.app.state.boardId, arrayBuffer, suffix);
             
             if (relativeSrc) {
-              const vw = window.innerWidth;
-              const vh = window.innerHeight;
-              const center = this.canvas.viewport.screenToCanvas(vw / 2, vh / 2);
-              
-              const spawnX = center.x - (w / 2);
-              const spawnY = center.y - (h / 2);
+              let spawnX, spawnY;
+
+              if (this.lastCursorScreenX !== null && this.lastCursorScreenY !== null) {
+                const pointerCanvas = this.canvas.viewport.screenToCanvas(this.lastCursorScreenX, this.lastCursorScreenY);
+                spawnX = pointerCanvas.x - (w / 2);
+                spawnY = pointerCanvas.y - (h / 2);
+              } else {
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+                const center = this.canvas.viewport.screenToCanvas(vw / 2, vh / 2);
+                spawnX = center.x - (w / 2);
+                spawnY = center.y - (h / 2);
+              }
               
               const newId = this.app.state.addImageNote(spawnX, spawnY, relativeSrc, w, h);
               if (newId) {
                 this.app.selection.clear();
                 this.app.selection.select(newId, 'note');
                 this.app.commitHistory();
+                
+                // Fast Capture: Immediately prompt for a caption
+                requestAnimationFrame(() => {
+                  this.spawnCaptionInput(newId);
+                });
               }
             }
           };
@@ -336,5 +385,59 @@ export class BoardEvents {
 
   handlePointerDown(type, id, e) {
     this.drag.handlePointerDown(type, id, e);
+  }
+
+  spawnCaptionInput(targetId) {
+    const noteEl = document.querySelector(`.orbit-note[data-id="${targetId}"]`);
+    const noteData = this.app.state.notes.get(targetId);
+    if (!noteEl || !noteData) return;
+
+    // Prevent double spawning
+    if (noteEl.querySelector('input')) return;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = noteData.caption || '';
+    input.placeholder = 'Add a caption...';
+    input.style.position = 'absolute';
+    input.style.bottom = '12px';
+    input.style.left = '50%';
+    input.style.transform = 'translateX(-50%)';
+    input.style.width = 'calc(100% - 24px)';
+    input.style.border = '1px solid var(--border-color, #CBD5E1)';
+    input.style.background = 'var(--color-canvas-bg, #FFFFFF)';
+    input.style.color = 'var(--color-text-main, #202124)';
+    input.style.outline = 'none';
+    input.style.borderRadius = '3px';
+    input.style.padding = '0 4px';
+    input.style.fontSize = '12px';
+    input.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+    input.style.zIndex = '10';
+    
+    let isCommitted = false;
+    const commit = () => {
+      if (isCommitted) return;
+      isCommitted = true;
+      const newCaption = input.value.trim();
+      if (noteData.caption !== newCaption) {
+        this.app.state.updateImageCaption(targetId, newCaption);
+        this.app.commitHistory();
+      }
+      input.remove();
+    };
+    
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', (ke) => {
+      if (ke.key === 'Enter') {
+        input.blur();
+      } else if (ke.key === 'Escape') {
+        input.value = noteData.caption || ''; // Revert
+        input.blur();
+      }
+    });
+    
+    noteEl.appendChild(input);
+    input.focus();
+    input.select();
   }
 }

@@ -100,6 +100,15 @@ export class State {
     }
   }
 
+  updateImageCaption(id, caption) {
+    if (this.sourceType === 'legacy') return;
+    const note = this.notes.get(id);
+    if (note && (note.type === 'image' || note.isImage) && note.caption !== caption) {
+      note.caption = caption || '';
+      this.notify();
+    }
+  }
+
   moveNote(id, x, y) {
     const note = this.notes.get(id);
     if (note && (note.x !== x || note.y !== y)) {
