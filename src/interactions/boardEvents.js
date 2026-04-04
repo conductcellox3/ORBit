@@ -293,14 +293,78 @@ export class BoardEvents {
 
         e.preventDefault();
         
-        // If we are currently inside a note editor, we must blur it to save its text first
-        if (active && active.classList.contains('orbit-note-content')) {
-          active.blur(); 
-        }
+        // Let the app safely read the text content and update state if needed, then blur
+        this.app.flushActiveEditor();
 
         const withEdge = e.shiftKey;
         this.app.createNextNoteFromSelection(withEdge);
         return;
+      }
+
+      // Mind Map Flow: Child and Sibling Creation
+      if ((e.ctrlKey || e.metaKey) && e.altKey) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          if (e.isComposing) return;
+
+          const active = document.activeElement;
+          if (active && (active.closest('.orbit-search-overlay') || active.closest('.orbit-properties'))) {
+            return;
+          }
+
+          e.preventDefault();
+          this.app.flushActiveEditor();
+
+          if (e.key === 'ArrowRight') {
+            this.app.createChildNoteFromSelection();
+          } else if (e.key === 'ArrowDown') {
+            this.app.createSiblingNoteFromSelection();
+          }
+          return;
+        }
+      }
+
+      // Mind Map Flow: Traversal
+      if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+          if (e.isComposing) return;
+
+          const active = document.activeElement;
+          if (active && (active.closest('.orbit-search-overlay') || active.closest('.orbit-properties'))) {
+            return; // Allow native inputs inside UI overlays
+          }
+
+          e.preventDefault();
+          // Blur if currently in a note, saving its content
+          this.app.flushActiveEditor();
+
+          const dirMap = {
+            'ArrowUp': 'up',
+            'ArrowDown': 'down',
+            'ArrowLeft': 'left',
+            'ArrowRight': 'right'
+          };
+          this.app.moveSelectionAmongConnected(dirMap[e.key]);
+          return;
+        }
+      }
+
+      // Generic Enter: Start typing in the currently selected text note
+      if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        if (!document.activeElement.isContentEditable) {
+          const active = document.activeElement;
+          if (!active || !(active.closest('.orbit-search-overlay') || active.closest('.orbit-properties'))) {
+            if (this.app.selection.type === 'note' && this.app.selection.selectedIds.size === 1) {
+              const id = Array.from(this.app.selection.selectedIds)[0];
+              const note = this.app.state.notes.get(id);
+              if (note && note.type !== 'image' && !note.isImage) {
+                e.preventDefault();
+                this.app.pendingFocusNoteId = id;
+                this.app.state.notify(); // Trigger DOM read and focus
+                return;
+              }
+            }
+          }
+        }
       }
 
       if (document.activeElement.isContentEditable) return;

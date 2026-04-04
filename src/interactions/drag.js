@@ -24,9 +24,30 @@ export class DragInteraction {
       return;
     }
 
-    if (!this.app.selection.has(id)) {
+    if (e.altKey && type === 'note') {
+      const connected = new Set([id]);
+      const queue = [id];
+      while (queue.length > 0) {
+        const curr = queue.shift();
+        for (const edge of this.app.state.edges.values()) {
+          const neighbor = edge.sourceId === curr ? edge.targetId : (edge.targetId === curr ? edge.sourceId : null);
+          if (neighbor && !connected.has(neighbor)) {
+            if (this.app.state.notes.has(neighbor)) {
+              connected.add(neighbor);
+              queue.push(neighbor);
+            }
+          }
+        }
+      }
+      // Bulk select the component
+      this.app.selection.selectedIds.clear();
+      for (const cId of connected) {
+        this.app.selection.selectedIds.add(cId);
+      }
+      this.app.selection.type = 'note';
+      this.app.selection.notify();
+    } else if (!this.app.selection.has(id)) {
       if (type === 'note' && this.app.state.notes.get(id)?.isImage) {
-         // Single select image
          this.app.selection.select(id, type);
       } else {
          this.app.selection.select(id, type);
