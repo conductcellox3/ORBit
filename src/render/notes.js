@@ -88,7 +88,7 @@ export class NoteRenderer {
       } else {
         const contentEl = el.querySelector('.orbit-note-content');
         if (contentEl && document.activeElement !== contentEl) {
-          contentEl.textContent = note.text;
+          contentEl.innerText = note.text;
         }
 
         // Modest Marker Chips
@@ -418,7 +418,7 @@ export class NoteRenderer {
       const content = document.createElement('div');
       content.className = 'orbit-note-content';
       content.contentEditable = 'true';
-      content.textContent = note.text;
+      content.innerText = note.text;
       
       // Force plain text paste
       content.addEventListener('paste', (e) => {
@@ -434,8 +434,8 @@ export class NoteRenderer {
     });
 
       content.addEventListener('blur', () => {
-        if (content.textContent !== this.app.state.notes.get(note.id).text) {
-          this.app.state.updateNoteText(note.id, content.textContent);
+        if (content.innerText !== this.app.state.notes.get(note.id).text) {
+          this.app.state.updateNoteText(note.id, content.innerText);
           this.app.commitHistory();
         }
       });
