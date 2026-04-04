@@ -68,9 +68,11 @@
   padding: 16px;
   min-width: 200px; /* Prevent squishing text during transition */
   white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
-/* Placeholder Styling */
 .pane-header {
   font-weight: 600;
   margin-bottom: 24px;
@@ -79,6 +81,15 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   opacity: 0.6;
+  flex-shrink: 0;
+}
+
+#orbit-properties-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .mock-tree {

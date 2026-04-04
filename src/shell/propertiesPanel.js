@@ -1,4 +1,5 @@
 import { workspaceManager } from '../core/workspace.js';
+import { BoardMarkdown } from '../core/export/boardMarkdown.js';
 
 export class PropertiesPanel {
   constructor(app) {
@@ -51,6 +52,9 @@ export class PropertiesPanel {
     if (this.activeTab === 'board') {
       this.renderBoardMode();
       this.currentRenderedId = 'BOARD:' + this.app.state.boardId;
+    } else if (this.activeTab === 'markdown') {
+      this.renderMarkdownMode();
+      this.currentRenderedId = 'MARKDOWN:' + this.app.state.boardId;
     } else {
       if (this.app.isGraphActive && this.app.boardsGraph?.selectedGraphNodeId) {
           const sid = this.app.boardsGraph.selectedGraphNodeId;
@@ -93,6 +97,16 @@ export class PropertiesPanel {
         if (entry) currentTopic = entry.topic || '';
       }
       this.updateValueElement('board-topic', currentTopic);
+    } else if (this.activeTab === 'markdown') {
+      if (this.currentRenderedId !== 'MARKDOWN:' + this.app.state.boardId) {
+         this.fullRender();
+         return;
+      }
+      // Debounce markdown generation
+      if (this.mdDebounce) clearTimeout(this.mdDebounce);
+      this.mdDebounce = setTimeout(() => {
+          if (this.activeTab === 'markdown') this.renderMarkdownMode();
+      }, 500);
     } else if (this.activeTab === 'inspect') {
       const ids = Array.from(this.app.selection.selectedIds);
       if (ids.length === 1) {
@@ -314,8 +328,124 @@ export class PropertiesPanel {
      }
   }
 
-  createRelationRow(targetBoardId, title, desc) {
-    const row = document.createElement('div');
+   async renderMarkdownMode() {
+      if (this.app.state.sourceType === 'legacy') {
+          this.bodyEl.innerHTML = '<div class="orbit-properties-empty">Cannot export legacy boards to Markdown yet.</div>';
+          return;
+      }
+
+      if (this.exportIncludeMeta === undefined) {
+          this.exportIncludeMeta = true; // Default behavior
+      }
+
+      const { markdown, assets } = BoardMarkdown.serialize(this.app.state, { includeMeta: this.exportIncludeMeta });
+      this.bodyEl.innerHTML = '';
+
+      const container = document.createElement('div');
+      container.className = 'orbit-properties';
+      
+      const controlsRow = document.createElement('div');
+      controlsRow.style.display = 'flex';
+      controlsRow.style.flexDirection = 'column';
+      controlsRow.style.gap = '8px';
+      controlsRow.style.marginBottom = '12px';
+
+      const exportBtn = document.createElement('button');
+      exportBtn.className = 'orbit-property-button orbit-primary';
+      exportBtn.textContent = 'Save as .md...';
+
+      const metaToggleRow = document.createElement('div');
+      metaToggleRow.style.display = 'flex';
+      metaToggleRow.style.alignItems = 'center';
+      metaToggleRow.style.gap = '6px';
+      
+      const metaCheck = document.createElement('input');
+      metaCheck.type = 'checkbox';
+      metaCheck.checked = this.exportIncludeMeta;
+      metaCheck.id = 'export-meta-toggle';
+      metaCheck.style.cursor = 'pointer';
+      
+      const metaLabel = document.createElement('label');
+      metaLabel.htmlFor = 'export-meta-toggle';
+      metaLabel.textContent = 'Include Orbit Meta Comments';
+      metaLabel.style.fontSize = '11px';
+      metaLabel.style.color = 'var(--color-text-main)';
+      metaLabel.style.cursor = 'pointer';
+      
+      metaCheck.onchange = (e) => {
+          this.exportIncludeMeta = e.target.checked;
+          this.renderMarkdownMode(); // Re-render immediately
+      };
+      
+      metaToggleRow.appendChild(metaCheck);
+      metaToggleRow.appendChild(metaLabel);
+
+      controlsRow.appendChild(exportBtn);
+      controlsRow.appendChild(metaToggleRow);
+
+      exportBtn.onclick = async () => {
+         const { save } = await import('@tauri-apps/plugin-dialog');
+         const { writeTextFile, mkdir, copyFile } = await import('@tauri-apps/plugin-fs');
+         const { dirname, join } = await import('@tauri-apps/api/path');
+
+         const safeTitle = (this.app.state.title || this.app.state.slug || 'board').replace(/[<>:"/\\|?*\x00-\x1F]/g, '_');
+         const defaultFilename = safeTitle + '.md';
+         const filepath = await save({
+            defaultPath: defaultFilename,
+            filters: [{ name: 'Markdown Document', extensions: ['md'] }]
+         });
+
+         if (filepath) {
+            try {
+               await writeTextFile(filepath, markdown);
+
+               if (assets.length > 0) {
+                  const dir = await dirname(filepath);
+                  const baseAssetsFolderName = (this.app.state.slug || 'board') + '.assets';
+                  const assetsDir = await join(dir, baseAssetsFolderName);
+
+                  try { await mkdir(assetsDir, { recursive: true }); } catch (e) {}
+
+                  for (const asset of assets) {
+                     if (asset.src && asset.src.startsWith('assets://')) {
+                        const boardDir = await workspaceManager.resolveBoardPath(this.app.state.boardId);
+                        const sourceLocalPath = await join(boardDir, asset.src.replace('assets://', ''));
+                        const targetPath = await join(assetsDir, asset.suggestedFilename);
+                        try {
+                           await copyFile(sourceLocalPath, targetPath);
+                        } catch (e) {
+                           console.error("Failed to copy image: ", sourceLocalPath, e);
+                        }
+                     }
+                  }
+               }
+            } catch (err) {
+               console.error("Export failure:", err);
+            }
+         }
+      };
+
+      container.appendChild(controlsRow);
+
+      const preview = document.createElement('pre');
+      preview.style.background = 'var(--bg-layer-1)';
+      preview.style.border = '1px solid var(--border-color)';
+      preview.style.borderRadius = '4px';
+      preview.style.padding = '8px';
+      preview.style.whiteSpace = 'pre-wrap';
+      preview.style.fontSize = '11px';
+      preview.style.color = 'var(--color-text-main)';
+      preview.style.flex = '1';
+      container.style.height = '100%';
+      preview.style.overflowY = 'auto';
+      preview.textContent = markdown;
+
+      container.appendChild(preview);
+      this.bodyEl.appendChild(container);
+   }
+
+   createRelationRow(targetBoardId, title, desc) {
+     const row = document.createElement('div');
     row.style.display = 'flex';
     row.style.alignItems = 'center';
     row.style.justifyContent = 'space-between';

@@ -613,3 +613,59 @@
   border-radius: 2px;
   padding: 0 1px;
 }
+
+.print-cross-warning {
+  outline: 3px solid rgba(239, 68, 68, 0.8) !important;
+  outline-offset: 2px;
+  overflow: visible !important;
+}
+
+.print-cross-warning::after {
+  content: '⚠ CROSSING';
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  background: #ef4444;
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  z-index: 100;
+  pointer-events: none;
+}
+
+/* =========================================================================
+   8. Export Isolation & Print Styles (Sprint 16)
+   ========================================================================= */
+
+body.is-printing-mode {
+  background: white !important;
+  margin: 0; padding: 0;
+}
+body.is-printing-mode #topbar,
+body.is-printing-mode #left-rail,
+body.is-printing-mode #left-pane,
+body.is-printing-mode #right-pane,
+body.is-printing-mode #right-rail,
+body.is-printing-mode .orbit-popover,
+body.is-printing-mode #board-transform {
+  display: none !important;
+}
+
+body.is-printing-mode #print-overlay-sandbox {
+  display: block !important;
+  position: static !important;
+}
+
+@media print {
+  @page {
+    margin: 0;
+  }
+  body, html {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    background: white;
+  }
+}

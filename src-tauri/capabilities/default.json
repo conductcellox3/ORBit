@@ -42,6 +42,7 @@
         }
       ]
     },
-    "clipboard-manager:default"
+    "clipboard-manager:default",
+    "dialog:default"
   ]
 }

@@ -45,6 +45,9 @@
         <div id="center-workspace">
           <!-- Canvas Area -->
           <div id="canvas-container">
+            <!-- Sandbox for Print / PNG isolated capture -->
+            <div id="print-overlay-sandbox" style="display: none; position: absolute; top: 0; left: 0; pointer-events: none; z-index:-1000;"></div>
+            
             <!-- The transforming layer that holds all DOM Notes/Frames and Edge endpoints -->
             <div id="board-transform">
               <!-- SVG layer for connecting lines, scales/pans internally -->
@@ -58,8 +61,9 @@
         <div id="right-pane" class="pane">
           <div class="pane-content">
             <div class="pane-header orbit-properties-header">
-              <button class="orbit-panel-tab is-active" data-target="board">Board</button>
+              <button class="orbit-panel-tab" data-target="board">Board</button>
               <button class="orbit-panel-tab" data-target="inspect">Inspect</button>
+              <button class="orbit-panel-tab" data-target="markdown">Markdown</button>
             </div>
             <div id="orbit-properties-body">
               <!-- Content will be injected directly by PropertiesPanel -->
