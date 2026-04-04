@@ -12,7 +12,7 @@ export class ShellLayout {
     this.workspaceId = 'default';
     
     this.leftPane = new SidePane('left-pane', `orbit:${this.workspaceId}:leftPane`, 250);
-    this.rightPane = new SidePane('right-pane', `orbit:${this.workspaceId}:rightPane`, 300);
+    this.rightPane = new SidePane('right-pane', `orbit:${this.workspaceId}:rightPane`, 340);
     
     this.leftRail = new IconRail('left-rail', 'left', this.leftPane);
     this.rightRail = new IconRail('right-rail', 'right', this.rightPane);

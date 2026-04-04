@@ -12,16 +12,11 @@ export class SearchUI {
     this.activeIndex = -1;
     this.resultEls = [];
     
-    this.overlay = this.createOverlay();
-    document.body.appendChild(this.overlay);
+    this.container = this.createContainer();
     this.bindEvents();
   }
 
-  createOverlay() {
-    const overlay = document.createElement('div');
-    overlay.className = 'orbit-search-overlay';
-    overlay.style.display = 'none';
-
+  createContainer() {
     // Container
     const container = document.createElement('div');
     container.className = 'orbit-search-container';
@@ -38,6 +33,7 @@ export class SearchUI {
 
     const switchWrapper = document.createElement('div');
     switchWrapper.className = 'orbit-search-switch';
+    switchWrapper.style.flex = '1';
 
     this.btnThisBoard = document.createElement('button');
     this.btnThisBoard.className = 'orbit-search-tab is-active';
@@ -49,6 +45,7 @@ export class SearchUI {
 
     switchWrapper.appendChild(this.btnThisBoard);
     switchWrapper.appendChild(this.btnAllBoards);
+
     headerRow1.appendChild(switchWrapper);
 
     const filterWrapper = document.createElement('div');
@@ -111,9 +108,8 @@ export class SearchUI {
     container.appendChild(header);
     container.appendChild(this.filtersContainer);
     container.appendChild(this.resultsContainer);
-    overlay.appendChild(container);
 
-    return overlay;
+    return container;
   }
 
   bindEvents() {
@@ -135,17 +131,18 @@ export class SearchUI {
     });
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.isOpen) {
-        this.close();
-      }
       if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault();
-        this.toggle();
+        this.app.toggleSearch();
       }
     });
 
     this.input.addEventListener('keydown', (e) => {
       if (e.isComposing) return;
+      if (e.key === 'Escape') {
+        this.input.blur();
+        return;
+      }
 
       if (e.key === 'Tab') {
         e.preventDefault();
@@ -161,12 +158,6 @@ export class SearchUI {
         if (this.activeIndex >= 0 && this.activeIndex < this.results.length) {
           this.handleResultClick(this.results[this.activeIndex]);
         }
-      }
-    });
-
-    this.overlay.addEventListener('click', (e) => {
-      if (e.target === this.overlay) {
-        this.close();
       }
     });
   }
@@ -347,7 +338,8 @@ export class SearchUI {
   }
 
   async handleResultClick(res) {
-    this.close();
+    // Keep open so users can test multiple results
+    // this.close();
     
     if (res.sourceType === 'legacy') {
       // Legacy open flow
@@ -372,33 +364,5 @@ export class SearchUI {
         setTimeout(() => this.app.jumpToNoteCenter(res.id), 50);
       }
     }
-  }
-
-  toggle() {
-    if (this.isOpen) {
-      this.close();
-    } else {
-      this.open();
-    }
-  }
-
-  open() {
-    this.isOpen = true;
-    this.overlay.style.display = 'flex';
-    this.input.focus();
-    this.input.select();
-    
-    // Auto trigger search if needed, but not required if it persists
-    if (this.query) {
-      this.performSearch();
-    } else {
-      this.renderResults();
-    }
-  }
-
-  close() {
-    this.isOpen = false;
-    this.overlay.style.display = 'none';
-    this.input.blur();
   }
 }

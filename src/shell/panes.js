@@ -28,7 +28,8 @@ export class SidePane {
 
   loadWidth() {
     const val = localStorage.getItem(this.widthParams.width);
-    return val ? parseInt(val, 10) : this.defaultWidth;
+    const parsed = val ? parseInt(val, 10) : this.defaultWidth;
+    return Math.max(parsed, this.defaultWidth);
   }
 
   saveState() {
@@ -50,6 +51,14 @@ export class SidePane {
     this.isOpen = !this.isOpen;
     this.saveState();
     this.applyState();
+  }
+
+  open() {
+    if (!this.isOpen) {
+      this.isOpen = true;
+      this.saveState();
+      this.applyState();
+    }
   }
 
   setWidth(newWidth) {

@@ -24,11 +24,16 @@ export class SearchEngine {
     // Search Notes
     for (const [id, note] of state.notes.entries()) {
       let typeStr = note.type === 'calc' ? 'calc' : 'note';
-      if (note.type === 'image' || note.isImage) typeStr = 'image';
+      if (note.type === 'image' || note.isImage || (note.type === 'linked-note' && note.snapshot?.kind === 'image')) typeStr = 'image';
       
       if (!passesFilters(typeStr, note.markers)) continue;
 
-      const searchableText = typeStr === 'image' ? note.caption : note.text;
+      let searchableText = '';
+      if (note.type === 'linked-note') {
+        searchableText = (note.snapshot?.kind === 'image') ? note.snapshot?.caption : note.snapshot?.text;
+      } else {
+        searchableText = typeStr === 'image' ? note.caption : note.text;
+      }
       
       if (!q) {
         results.push({
@@ -219,12 +224,20 @@ export class SearchEngine {
         if (state.notes && Array.isArray(state.notes)) {
           state.notes.forEach(([id, note]) => {
             if (!note) return;
-            const isImg = note.type === 'image' || note.isImage;
-            if (isImg && note.caption) {
-              items.push({ id: note.id, type: 'image', text: note.caption, matchField: 'caption', markers: note.markers || [] });
-            } else if (!isImg && note.text) {
+            const isImg = note.type === 'image' || note.isImage || (note.type === 'linked-note' && note.snapshot?.kind === 'image');
+            
+            let searchableText = '';
+            if (note.type === 'linked-note') {
+              searchableText = (note.snapshot?.kind === 'image') ? note.snapshot?.caption : note.snapshot?.text;
+            } else {
+              searchableText = isImg ? note.caption : note.text;
+            }
+
+            if (isImg && searchableText) {
+              items.push({ id: note.id, type: 'image', text: searchableText, matchField: 'caption', markers: note.markers || [] });
+            } else if (!isImg && searchableText) {
               const typeStr = note.type === 'calc' ? 'calc' : 'note';
-              items.push({ id: note.id, type: typeStr, text: note.text, matchField: 'text', markers: note.markers || [] });
+              items.push({ id: note.id, type: typeStr, text: searchableText, matchField: 'text', markers: note.markers || [] });
             }
           });
         }
@@ -245,13 +258,13 @@ export class SearchEngine {
 
   generateSnippet(text, query) {
     if (!text) return '';
-    if (!query) return text.substring(0, 70); // Just return first chunk for filter-only
+    if (!query) return text.substring(0, 150); // Just return first chunk for filter-only
     const qLower = query.toLowerCase();
     const idx = text.toLowerCase().indexOf(qLower);
-    if (idx === -1) return text.substring(0, 70) + '...';
+    if (idx === -1) return text.substring(0, 150) + '...';
 
-    const start = Math.max(0, idx - 30);
-    const end = Math.min(text.length, idx + query.length + 30);
+    const start = Math.max(0, idx - 40);
+    const end = Math.min(text.length, idx + query.length + 80);
     
     let snippet = text.substring(start, end);
     if (start > 0) snippet = '...' + snippet;

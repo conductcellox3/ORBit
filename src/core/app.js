@@ -279,8 +279,14 @@ export class App {
 
 
   toggleSearch() {
-    if (this.onToggleSearch) {
-      this.onToggleSearch();
+    if (this.shell && this.shell.rightPane) {
+      this.shell.rightPane.open();
+    }
+    if (this.propertiesPanel) {
+      this.propertiesPanel.switchTab('search');
+      if (this.searchUI && this.searchUI.input) {
+        setTimeout(() => this.searchUI.input.focus(), 50);
+      }
     }
   }
 

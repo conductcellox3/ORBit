@@ -35,9 +35,7 @@ async function bootstrap() {
   app.exportPanel = new ExportPanel(app, 'export-panel');
   app.settingsPanel = new SettingsPanel(app, 'settings-panel');
   
-  app.onToggleSearch = () => {
-    app.searchUI.toggle();
-  };
+  // Search toggling is handled natively in app.js
   
   app.onLinkIndexUpdated = () => {
     if (app.propertiesPanel) {

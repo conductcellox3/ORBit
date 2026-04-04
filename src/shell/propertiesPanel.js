@@ -14,11 +14,14 @@ export class PropertiesPanel {
     this.initTabs();
 
     this.app.selection.subscribe(() => {
-      if (this.app.selection.selectedIds.size === 1) {
-        this.switchTab('inspect', true);
-      } else if (this.app.selection.selectedIds.size === 0) {
-        if (!this.app.isGraphActive || !this.app.boardsGraph?.selectedGraphNodeId) {
-          this.switchTab('board', true);
+      // Do not auto-switch tabs if the user is actively using the Search tab
+      if (this.activeTab !== 'search') {
+        if (this.app.selection.selectedIds.size === 1) {
+          this.switchTab('inspect', true);
+        } else if (this.app.selection.selectedIds.size === 0) {
+          if (!this.app.isGraphActive || !this.app.boardsGraph?.selectedGraphNodeId) {
+            this.switchTab('board', true);
+          }
         }
       }
       this.fullRender();
@@ -48,10 +51,14 @@ export class PropertiesPanel {
 
   fullRender() {
     this.bodyEl.innerHTML = ''; // Wipe dirty state
+    this.bodyEl.style.padding = ''; // Reset custom padding for full-bleed tabs
     
     if (this.activeTab === 'board') {
       this.renderBoardMode();
       this.currentRenderedId = 'BOARD:' + this.app.state.boardId;
+    } else if (this.activeTab === 'search') {
+      this.renderSearchMode();
+      this.currentRenderedId = 'SEARCH';
     } else if (this.activeTab === 'markdown') {
       this.renderMarkdownMode();
       this.currentRenderedId = 'MARKDOWN:' + this.app.state.boardId;
@@ -97,6 +104,8 @@ export class PropertiesPanel {
         if (entry) currentTopic = entry.topic || '';
       }
       this.updateValueElement('board-topic', currentTopic);
+    } else if (this.activeTab === 'search') {
+      // Search UI manages its own internal soft updates
     } else if (this.activeTab === 'markdown') {
       if (this.currentRenderedId !== 'MARKDOWN:' + this.app.state.boardId) {
          this.fullRender();
@@ -382,6 +391,21 @@ export class PropertiesPanel {
         });
      }
   }
+
+   renderSearchMode() {
+      this.bodyEl.style.padding = '0'; // Allow Search UI to stretch
+      if (this.app.searchUI && this.app.searchUI.container) {
+         this.bodyEl.appendChild(this.app.searchUI.container);
+         
+         // Fix CSS constraints that were used for floating modal
+         this.app.searchUI.container.style.width = '100%';
+         this.app.searchUI.container.style.height = '100%';
+         this.app.searchUI.container.style.maxHeight = 'none';
+         this.app.searchUI.container.style.boxShadow = 'none';
+         this.app.searchUI.container.style.border = 'none';
+         this.app.searchUI.container.style.borderRadius = '0';
+      }
+   }
 
    async renderMarkdownMode() {
       if (this.app.state.sourceType === 'legacy') {
