@@ -9,6 +9,18 @@ export class TabManager {
   }
 
   syncTabFromState() {
+    if (this.app.isGraphActive) {
+      const key = 'native:__orbit_boards_graph__';
+      if (!this.openTabs.has(key)) {
+         this.openTabs.set(key, {
+            id: '__orbit_boards_graph__',
+            title: 'Boards Graph',
+            type: 'native'
+         });
+      }
+      return;
+    }
+
     const id = this.app.state.boardId;
     const type = this.app.state.sourceType;
     if (!id || !type) return;
@@ -55,9 +67,12 @@ export class TabManager {
   render() {
     this.element.innerHTML = '';
     
-    const currentKey = this.app.state.boardId && this.app.state.sourceType 
-      ? `${this.app.state.sourceType}:${this.app.state.boardId}` 
-      : null;
+    let currentKey = null;
+    if (this.app.isGraphActive) {
+       currentKey = 'native:__orbit_boards_graph__';
+    } else if (this.app.state.boardId && this.app.state.sourceType) {
+       currentKey = `${this.app.state.sourceType}:${this.app.state.boardId}`;
+    }
     
     // Render all tracked tabs
     for (const [key, tabInfo] of this.openTabs.entries()) {
@@ -95,7 +110,12 @@ export class TabManager {
                                    remainingKeys.slice(0, fallbackIndex).reverse().find(k => this.openTabs.get(k).type === 'native');
                                    
              if (nearestNative) {
-                 await this.app.loadNativeBoard(this.openTabs.get(nearestNative).id);
+                 const tInfo = this.openTabs.get(nearestNative);
+                 if (tInfo.id === '__orbit_boards_graph__') {
+                     if (this.app.openGraphTab) await this.app.openGraphTab();
+                 } else {
+                     await this.app.loadNativeBoard(tInfo.id);
+                 }
              } else {
                  await this.app.loadNativeBoard();
              }
@@ -112,7 +132,9 @@ export class TabManager {
       
       tabEl.addEventListener('click', async () => {
         if (!isActive) {
-          if (tabInfo.type === 'native') {
+          if (tabInfo.id === '__orbit_boards_graph__') {
+              if (this.app.openGraphTab) await this.app.openGraphTab();
+          } else if (tabInfo.type === 'native') {
               await this.app.loadNativeBoard(tabInfo.id);
           } else {
               const legacyData = await workspaceLoader.loadBoardState(tabInfo.id, tabInfo.slug);

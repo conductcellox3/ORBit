@@ -14,6 +14,7 @@ export class NativeWorkspaceManager {
     this.manifest = null;
     this.crossBoardLinkIndex = new Map(); // Map<`${sourceBoardId}::${sourceNoteId}`, Array<{boardId, noteId, boardTitle, snapshotKind}>>
     this.globalAdjacencyGraph = new Map(); // Map<fromBoardId, Map<toBoardId, { count }>>
+    this.onManifestUpdated = null;
   }
 
   async init() {
@@ -108,6 +109,7 @@ export class NativeWorkspaceManager {
     const manifestPath = `${this.workspaceDirName}/${this.manifestName}`;
     const content = JSON.stringify(this.manifest, null, 2);
     await writeTextFile(manifestPath, content, this.basePathObj);
+    if (this.onManifestUpdated) this.onManifestUpdated();
   }
 
   async createBoard(title = "Untitled Board", topic = "") {

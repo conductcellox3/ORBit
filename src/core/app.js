@@ -4,6 +4,7 @@ import { Selection } from './selection.js';
 import { Persistence } from './persistence.js';
 
 import { workspaceManager } from './workspace.js';
+import { GraphModel } from './graphModel.js';
 
 export class App {
   constructor() {
@@ -13,6 +14,11 @@ export class App {
     this.persistence = new Persistence(this.state, this.history);
     this.pendingFocusNoteId = null;
     this.activePeek = null;
+    this.graphModel = new GraphModel(this);
+    this.isGraphActive = false;
+    workspaceManager.onManifestUpdated = () => {
+       this.graphModel.build();
+    };
   }
 
   async init() {
@@ -29,7 +35,7 @@ export class App {
   }
 
   async loadNativeBoard(boardId, options = {}) {
-    if (this.state.sourceType === 'native' && this.state.boardId === boardId) {
+    if (!options.isPeek && !this.isGraphActive && this.state.sourceType === 'native' && this.state.boardId === boardId) {
       if (options.restoreViewport) {
         this.state.canvas.panX = options.restoreViewport.panX;
         this.state.canvas.panY = options.restoreViewport.panY;
@@ -50,15 +56,16 @@ export class App {
        if (this.onPeekStateChange) this.onPeekStateChange(null);
     }
     
-    if (this.state.boardId) {
+    if (this.state.boardId || this.isGraphActive) {
       try {
-        await this.save();
+        if (!this.isGraphActive) await this.save();
       } catch (e) {
         console.error("Failed to safely save current board, aborting switch", e);
         return;
       }
     }
 
+    this.isGraphActive = false;
     this.selection.clear();
     await this.persistence.loadNativeBoard(boardId);
     
@@ -81,18 +88,50 @@ export class App {
     this.state.checkLinkedNotesForUpdates();
   }
 
+  async openGraphTab() {
+    if (!this.activePeek && this.isGraphActive) return;
+
+    if (this.state.boardId && !this.isGraphActive) {
+      try {
+        await this.save();
+      } catch (e) {
+         console.error("Failed to save before graph", e);
+         return;
+      }
+    }
+    
+    this.isGraphActive = true;
+    this.selection.clear();
+    this.graphModel.build();
+
+    if (this.onGraphTabOpened) this.onGraphTabOpened();
+    if (this.onBoardChanged) this.onBoardChanged('__orbit_boards_graph__');
+    if (this.onTitleChanged) this.onTitleChanged('Boards Graph');
+  }
+
   async peekBoard(boardId) {
     if (!boardId) return;
 
     if (!this.activePeek) {
-        this.activePeek = {
-           originBoardId: this.state.boardId,
-           originTitle: this.state.title,
-           panX: this.state.canvas.panX,
-           panY: this.state.canvas.panY,
-           zoom: this.state.canvas.zoom,
-           selectedIds: Array.from(this.selection.selectedIds)
-        };
+        if (this.isGraphActive) {
+            this.activePeek = {
+               originKind: 'graph',
+               originTitle: 'Boards Graph'
+            };
+            if (this.onGraphPeekCapture) {
+               Object.assign(this.activePeek, this.onGraphPeekCapture());
+            }
+        } else {
+            this.activePeek = {
+               originKind: 'board',
+               originBoardId: this.state.boardId,
+               originTitle: this.state.title,
+               panX: this.state.canvas.panX,
+               panY: this.state.canvas.panY,
+               zoom: this.state.canvas.zoom,
+               selectedIds: Array.from(this.selection.selectedIds)
+            };
+        }
     }
     
     await this.loadNativeBoard(boardId, { isPeek: true });
@@ -105,7 +144,12 @@ export class App {
      this.activePeek = null;
      if (this.onPeekStateChange) this.onPeekStateChange(null);
      
-     if (attemptRestore.originBoardId) {
+     if (attemptRestore.originKind === 'graph') {
+        await this.openGraphTab();
+        if (this.onGraphPeekRestore) {
+           this.onGraphPeekRestore(attemptRestore);
+        }
+     } else if (attemptRestore.originBoardId) {
         await this.loadNativeBoard(attemptRestore.originBoardId, { restoreViewport: attemptRestore });
      }
   }
@@ -136,6 +180,7 @@ export class App {
   _updateLinkIndex() {
     if (this.state.sourceType === 'native' && this.state.boardId) {
        workspaceManager.updateLinkIndexIncremental(this.state.boardId, this.state.title, this.state.notes);
+       this.graphModel.build(); 
        if (this.onLinkIndexUpdated) this.onLinkIndexUpdated();
     }
   }

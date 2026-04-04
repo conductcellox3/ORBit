@@ -148,6 +148,11 @@ export class PropertiesPanel {
   }
 
   renderBoardMode() {
+    if (this.app.isGraphActive) {
+      this.renderGraphControlsMode();
+      return;
+    }
+
     const isLegacy = this.app.state.sourceType === 'legacy';
     
     const container = document.createElement('div');
@@ -370,6 +375,11 @@ export class PropertiesPanel {
   }
 
   renderInspectMode(id, type) {
+    if (this.app.isGraphActive && type === 'graph-node') {
+       this.renderGraphNodeInspect(id);
+       return;
+    }
+    
     const isLegacy = this.app.state.sourceType === 'legacy';
     const container = document.createElement('div');
     container.className = 'orbit-properties';
@@ -813,5 +823,124 @@ export class PropertiesPanel {
     group.appendChild(labelEl);
     group.appendChild(select);
     return group;
+  }
+
+  renderGraphControlsMode() {
+      const container = document.createElement('div');
+      container.className = 'orbit-properties';
+      
+      const graph = this.app.boardsGraph;
+      if (!graph) return;
+
+      container.innerHTML = `
+        <div class="orbit-properties-group">
+          <label>LAYOUT MODE</label>
+          <select id="graph-layout-select" class="orbit-select orbit-full-width" style="margin-top:4px;">
+            <option value="force" ${graph.currentLayout === 'force' ? 'selected' : ''}>Relation (Force)</option>
+            <option value="topic" ${graph.currentLayout === 'topic' ? 'selected' : ''}>Topic Grouped</option>
+            <option value="timeline" ${graph.currentLayout === 'timeline' ? 'selected' : ''}>Timeline</option>
+          </select>
+        </div>
+        <div class="orbit-properties-group">
+          <label>FILTER BY TEXT</label>
+          <input type="text" id="graph-text-filter" class="orbit-input orbit-full-width" placeholder="Title/topic..." style="margin-top:4px;" value="${graph.textFilter || ''}" />
+        </div>
+        <div class="orbit-properties-group" style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+          <label style="margin:0;">HIDE ISOLATED BOARDS</label>
+          <input type="checkbox" id="graph-isolate-check" ${graph.hideIsolated ? 'checked' : ''} />
+        </div>
+        <div class="orbit-properties-group" style="margin-top:12px;">
+          <label>FILTER BY DATE (START - END)</label>
+          <div style="display:flex; gap: 4px; margin-top:4px;">
+             <input type="month" id="graph-start-date" value="${graph.startDate || ''}" style="width:50%;" />
+             <input type="month" id="graph-end-date" value="${graph.endDate || ''}" style="width:50%;" />
+          </div>
+        </div>
+        <div class="orbit-properties-group" style="margin-top:12px;">
+          <label>MIN LINK STRENGTH</label>
+          <input type="range" id="graph-min-strength" min="1" max="10" value="${graph.minStrength}" style="width:100%; margin-top:4px;" />
+          <div id="graph-str-val" style="text-align:right; font-size:10px; color:var(--text-muted);">${graph.minStrength} links minimum</div>
+        </div>
+        <div class="orbit-properties-group" style="margin-top:20px;">
+          <button id="graph-fit-btn" class="orbit-property-button orbit-full-width">Fit to View</button>
+        </div>
+      `;
+
+      this.bodyEl.appendChild(container);
+
+      document.getElementById('graph-layout-select').addEventListener('change', (e) => {
+          graph.currentLayout = e.target.value;
+          graph.triggerLayoutUpdate();
+      });
+      document.getElementById('graph-text-filter').addEventListener('input', (e) => {
+          graph.textFilter = e.target.value;
+          graph.triggerLayoutUpdate();
+      });
+      document.getElementById('graph-isolate-check').addEventListener('change', (e) => {
+          graph.hideIsolated = e.target.checked;
+          graph.triggerLayoutUpdate();
+      });
+      document.getElementById('graph-start-date').addEventListener('change', (e) => {
+          graph.startDate = e.target.value;
+          graph.triggerLayoutUpdate();
+      });
+      document.getElementById('graph-end-date').addEventListener('change', (e) => {
+          graph.endDate = e.target.value;
+          graph.triggerLayoutUpdate();
+      });
+      document.getElementById('graph-min-strength').addEventListener('input', (e) => {
+          graph.minStrength = parseInt(e.target.value, 10);
+          document.getElementById('graph-str-val').textContent = `${graph.minStrength} links minimum`;
+          graph.triggerLayoutUpdate();
+      });
+      document.getElementById('graph-fit-btn').addEventListener('click', () => {
+          graph.fitToView();
+      });
+  }
+
+  renderGraphNodeInspect(id) {
+    const node = this.app.boardsGraph?.nodes.find(n => n.id === id);
+    if (!node) {
+        this.bodyEl.innerHTML = '<div class="orbit-properties-empty">No board selected</div>';
+        return;
+    }
+
+    const container = document.createElement('div');
+    container.className = 'orbit-properties';
+
+    container.appendChild(this.createRow('Type', 'Board Node'));
+    container.appendChild(this.createRow('Title', node.title));
+    container.appendChild(this.createRow('Topic', node.topic));
+    container.appendChild(this.createRow('Created', new Date(node.createdAt).toLocaleString()));
+    container.appendChild(this.createRow('Relations', `${node.totalWeight} global links`));
+
+    // Actions
+    const actionRow = document.createElement('div');
+    actionRow.className = 'orbit-properties-group no-label';
+    actionRow.style.display = 'flex';
+    actionRow.style.gap = '8px';
+    actionRow.style.marginTop = '16px';
+    
+    const peekBtn = document.createElement('button');
+    peekBtn.className = 'orbit-property-button';
+    peekBtn.style.flex = '1';
+    peekBtn.textContent = 'Peek';
+    peekBtn.onclick = () => {
+       if (this.app.peekBoard) this.app.peekBoard(id);
+    };
+
+    const openBtn = document.createElement('button');
+    openBtn.className = 'orbit-property-button';
+    openBtn.style.flex = '1';
+    openBtn.textContent = '↗ Open';
+    openBtn.onclick = () => {
+       if (this.app.loadNativeBoard) this.app.loadNativeBoard(id);
+    };
+
+    actionRow.appendChild(peekBtn);
+    actionRow.appendChild(openBtn);
+    container.appendChild(actionRow);
+
+    this.bodyEl.appendChild(container);
   }
 }

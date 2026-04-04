@@ -10,6 +10,7 @@ import { PropertiesPanel } from './shell/propertiesPanel.js';
 
 import { SearchEngine } from './core/search.js';
 import { SearchUI } from './shell/searchUI.js';
+import { BoardsGraphView } from './render/boardsGraphView.js';
 
 async function bootstrap() {
   const app = new App();
@@ -48,6 +49,9 @@ async function bootstrap() {
     'board-transform', 
     interactionsManager
   );
+
+  const boardsGraph = new BoardsGraphView(app, 'canvas-container');
+  app.boardsGraph = boardsGraph;
 
   drag.canvas = canvas;
   edgeDraw.canvas = canvas;
