@@ -62,6 +62,47 @@ export class BoardEvents {
         });
       }
 
+      if (!targetId) {
+        const payload = this.app.clipboard?.linkPayload;
+        if (payload) {
+          items.push({
+            label: `Insert Linked Note (${payload.sourceBoardTitle})`,
+            onClick: () => {
+              const pt = this.canvas.viewport.screenToCanvas(e.clientX, e.clientY);
+              const newNode = {
+                type: 'linked-note',
+                x: pt.x,
+                y: pt.y,
+                w: 250,
+                h: payload.snapshot.kind === 'image' ? undefined : 150,
+                sourceRef: {
+                  boardId: payload.boardId,
+                  noteId: payload.noteId
+                },
+                snapshot: payload.snapshot,
+                linkMeta: {
+                  sourceBoardTitle: payload.sourceBoardTitle,
+                  sourceBoardDirName: payload.sourceBoardDirName,
+                  cachedAt: payload.timestamp
+                }
+              };
+              const id = this.app.state.addLinkedNote(newNode);
+              if (id) {
+                this.app.commitHistory();
+                this.app.selection.clear();
+                this.app.selection.select(id, 'note');
+              }
+            }
+          });
+          items.push({
+            label: 'Clear Pending Link',
+            onClick: () => {
+              this.app.clipboard.linkPayload = null;
+            }
+          });
+        }
+      }
+
       if (targetId && this.app.selection.selectedIds.size > 0) {
         let hasNonImage = false;
         for (const id of this.app.selection.selectedIds) {
@@ -103,6 +144,8 @@ export class BoardEvents {
         
         let hasImage = false;
         let isSingleTextNote = false;
+        let isLinkableSource = false;
+        let isLinkedNote = false;
         
         if (targetType === 'note') {
           for (const id of this.app.selection.selectedIds) {
@@ -111,19 +154,151 @@ export class BoardEvents {
               hasImage = true;
             }
           }
-          if (!hasImage && this.app.selection.selectedIds.size === 1) {
+          if (this.app.selection.selectedIds.size === 1) {
             const n = this.app.state.notes.get(targetId);
-            if (n && n.type !== 'calc') {
-               isSingleTextNote = true;
+            if (n && n.type === 'linked-note') {
+              isLinkedNote = true;
+            } else if (n && n.type !== 'calc') {
+              isLinkableSource = true;
+              if (!hasImage) isSingleTextNote = true;
             }
           }
         }
 
-        if (hasImage && this.app.selection.selectedIds.size === 1) {
+        if (hasImage && this.app.selection.selectedIds.size === 1 && !isLinkedNote) {
           items.push({
             label: 'Edit Caption...',
             onClick: () => {
               this.spawnCaptionInput(targetId);
+            }
+          });
+        }
+
+        if (isLinkableSource && this.app.state.sourceType === 'native') {
+          items.push({ type: 'separator' });
+          items.push({
+            label: 'Create Cross-board Link',
+            onClick: () => {
+              const n = this.app.state.notes.get(targetId);
+              this.app.clipboard = this.app.clipboard || {};
+              this.app.clipboard.linkPayload = {
+                sourceType: 'native',
+                boardId: this.app.state.boardId,
+                noteId: targetId,
+                sourceNoteType: (n.type === 'image' || n.isImage) ? 'image' : 'note',
+                sourceBoardTitle: this.app.state.title,
+                sourceBoardDirName: this.app.state.dirName || this.app.state.boardId,
+                snapshot: {
+                  kind: (n.type === 'image' || n.isImage) ? 'image' : 'note',
+                  text: n.text,
+                  caption: n.caption,
+                  src: n.src
+                },
+                timestamp: Date.now()
+              };
+              const toast = document.createElement('div');
+              toast.textContent = 'Link stored to pending payload';
+              toast.style.position = 'absolute';
+              toast.style.top = '16px';
+              toast.style.left = '50%';
+              toast.style.transform = 'translateX(-50%)';
+              toast.style.background = 'var(--accent-color, #3b82f6)';
+              toast.style.color = 'white';
+              toast.style.padding = '6px 12px';
+              toast.style.borderRadius = '4px';
+              toast.style.fontSize = '12px';
+              toast.style.zIndex = '9999';
+              document.body.appendChild(toast);
+              setTimeout(() => { toast.remove(); }, 1500);
+            }
+          });
+        }
+
+        if (isLinkedNote) {
+          items.push({ type: 'separator' });
+          items.push({
+            label: 'Open Source Note',
+            onClick: () => {
+              const n = this.app.state.notes.get(targetId);
+              if (n && n.sourceRef && window.app) {
+                window.app.jumpToBoardNote(n.sourceRef.boardId, n.sourceRef.noteId);
+              }
+            }
+          });
+          items.push({
+            label: 'Refresh from Source',
+            onClick: async () => {
+              const n = this.app.state.notes.get(targetId);
+              if (!n || !n.sourceRef) return;
+              
+              const { boardId, noteId } = n.sourceRef;
+              let sourceNoteData = null;
+              
+              if (this.app.state.boardId === boardId) {
+                sourceNoteData = this.app.state.notes.get(noteId);
+              } else {
+                const entry = workspaceManager.manifest.boards.find(b => b.id === boardId);
+                if (entry) {
+                  const boardPath = await workspaceManager.resolveBoardPath(boardId);
+                  if (boardPath) {
+                    try {
+                      // Dynamically import tauri fs and path
+                      const { readTextFile } = await import('@tauri-apps/plugin-fs');
+                      const { resolve } = await import('@tauri-apps/api/path');
+                      
+                      const statePath = await resolve(boardPath, 'state.json');
+                      const rawState = await readTextFile(statePath);
+                      const json = JSON.parse(rawState);
+                      const noteEntry = json.notes?.find(x => x[0] === noteId);
+                      if (noteEntry) {
+                        sourceNoteData = noteEntry[1];
+                      }
+                    } catch (e) {
+                      console.error("Failed to read remote board state", e);
+                    }
+                  }
+                }
+              }
+
+              if (sourceNoteData) {
+                n.snapshot.text = sourceNoteData.text;
+                n.snapshot.caption = sourceNoteData.caption;
+                n.snapshot.src = sourceNoteData.src;
+                n.linkMeta.cachedAt = Date.now();
+                n.hasUpdateAvailable = false;
+                this.app.commitHistory();
+                this.app.state.notify();
+                
+                const toast = document.createElement('div');
+                toast.textContent = 'Linked note snapshot refreshed';
+                toast.style.position = 'absolute';
+                toast.style.top = '16px';
+                toast.style.left = '50%';
+                toast.style.transform = 'translateX(-50%)';
+                toast.style.background = 'var(--accent-color, #3b82f6)';
+                toast.style.color = 'white';
+                toast.style.padding = '6px 12px';
+                toast.style.borderRadius = '4px';
+                toast.style.fontSize = '12px';
+                toast.style.zIndex = '9999';
+                document.body.appendChild(toast);
+                setTimeout(() => { toast.remove(); }, 1500);
+              } else {
+                const toast = document.createElement('div');
+                toast.textContent = 'Source note could not be found';
+                toast.style.position = 'absolute';
+                toast.style.top = '16px';
+                toast.style.left = '50%';
+                toast.style.transform = 'translateX(-50%)';
+                toast.style.background = '#ef4444'; // red
+                toast.style.color = 'white';
+                toast.style.padding = '6px 12px';
+                toast.style.borderRadius = '4px';
+                toast.style.fontSize = '12px';
+                toast.style.zIndex = '9999';
+                document.body.appendChild(toast);
+                setTimeout(() => { toast.remove(); }, 1500);
+              }
             }
           });
         }

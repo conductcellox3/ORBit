@@ -67,6 +67,24 @@ export class NoteRenderer {
         } else if (captionEl) {
           captionEl.remove();
         }
+      } else if (note.type === 'linked-note') {
+        const headerText = el.querySelector('.orbit-linked-note-header span');
+        if (headerText && note.linkMeta) {
+          headerText.textContent = `Linked from: ${note.linkMeta.sourceBoardTitle || 'Unknown'}`;
+        }
+        
+        let badge = el.querySelector('.orbit-update-badge');
+        if (note.hasUpdateAvailable) {
+          if (!badge) {
+            badge = document.createElement('div');
+            badge.className = 'orbit-update-badge';
+            badge.title = 'Update available. Right-click -> Refresh from Source';
+            const header = el.querySelector('.orbit-linked-note-header');
+            if (header) header.appendChild(badge);
+          }
+        } else {
+          if (badge) badge.remove();
+        }
       } else {
         const contentEl = el.querySelector('.orbit-note-content');
         if (contentEl && document.activeElement !== contentEl) {
@@ -176,7 +194,101 @@ export class NoteRenderer {
     el.className = 'orbit-note';
     el.dataset.id = note.id;
     
-    if (note.type === 'image' || note.isImage) {
+    if (note.type === 'linked-note') {
+      el.classList.add('is-linked-note');
+      el.style.display = 'flex';
+      el.style.flexDirection = 'column';
+      el.style.backgroundColor = 'var(--bg-layer-2, #F8F9FA)';
+      el.style.overflow = 'hidden';
+
+      const header = document.createElement('div');
+      header.className = 'orbit-linked-note-header';
+      header.style.fontSize = '10px';
+      header.style.color = 'var(--color-text-muted, #64748b)';
+      header.style.backgroundColor = 'rgba(0,0,0,0.03)';
+      header.style.padding = '4px 8px';
+      header.style.borderBottom = '1px solid var(--border-color)';
+      header.style.display = 'flex';
+      header.style.alignItems = 'center';
+      header.style.gap = '4px';
+      header.style.userSelect = 'none';
+      header.innerHTML = `
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+        </svg>
+        <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Linked from: ${note.linkMeta?.sourceBoardTitle || 'Unknown'}</span>
+      `;
+      el.appendChild(header);
+
+      const content = document.createElement('div');
+      content.className = 'orbit-linked-note-content';
+      content.style.flex = '1';
+      content.style.position = 'relative';
+      content.style.opacity = '0.9';
+      
+      // Transparent overlay to prevent edit/selection interactions
+      const blockOverlay = document.createElement('div');
+      blockOverlay.style.position = 'absolute';
+      blockOverlay.style.inset = '0';
+      blockOverlay.style.zIndex = '10';
+      blockOverlay.style.cursor = 'pointer';
+      
+      blockOverlay.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        if (window.app && note.sourceRef) {
+          window.app.jumpToBoardNote(note.sourceRef.boardId, note.sourceRef.noteId);
+        }
+      });
+      content.appendChild(blockOverlay);
+
+      if (note.snapshot?.kind === 'image') {
+        content.style.display = 'flex';
+        content.style.flexDirection = 'column';
+        content.style.padding = '8px';
+        content.style.gap = '8px';
+        
+        const img = document.createElement('img');
+        img.className = 'orbit-note-image';
+        img.style.width = '100%';
+        img.style.minHeight = '0';
+        img.style.objectFit = 'contain';
+        img.style.flex = '1';
+        
+        if (workspaceManager && note.sourceRef) {
+          workspaceManager.resolveAssetUrl(note.sourceRef.boardId, note.snapshot.src).then(resolvedSrc => {
+             if (resolvedSrc) img.src = resolvedSrc;
+          });
+        }
+        content.appendChild(img);
+        
+        if (note.snapshot.caption) {
+          const caption = document.createElement('div');
+          caption.textContent = note.snapshot.caption;
+          caption.style.fontSize = '12px';
+          caption.style.textAlign = 'center';
+          caption.style.color = 'var(--color-text-muted, #64748b)';
+          content.appendChild(caption);
+        }
+      } else {
+        content.style.padding = '12px';
+        const innerText = document.createElement('div');
+        innerText.textContent = note.snapshot?.text || '';
+        innerText.style.fontSize = '14px';
+        innerText.style.wordBreak = 'break-word';
+        innerText.style.whiteSpace = 'pre-wrap';
+        content.appendChild(innerText);
+      }
+      
+      el.appendChild(content);
+
+      // Prevent pointer events crossing into editable logic
+      el.addEventListener('pointerdown', (e) => {
+        this.interactions.handlePointerDown('note', note.id, e);
+      });
+
+    } else if (note.type === 'image' || note.isImage) {
       el.classList.add('is-image-note');
       el.style.display = 'flex';
       el.style.flexDirection = 'column';

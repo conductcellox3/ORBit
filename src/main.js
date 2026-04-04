@@ -16,6 +16,7 @@ async function bootstrap() {
   app.imageViewer = new ImageViewer(app);
   app.searchEngine = new SearchEngine(app);
   await app.init();
+  window.app = app;
   
   const shell = new ShellLayout(app);
   shell.mount();

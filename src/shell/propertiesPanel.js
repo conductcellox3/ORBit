@@ -231,9 +231,43 @@ export class PropertiesPanel {
     const frame = this.app.state.frames.get(id);
 
     if (type === 'note' && note) {
-      const isImage = note.type === 'image' || note.isImage;
+      if (note.type === 'linked-note') {
+        container.appendChild(this.createRow('Type', 'Linked Note (Read-only)'));
+        container.appendChild(this.createRow('Source Board', note.linkMeta?.sourceBoardTitle || 'Unknown'));
+        container.appendChild(this.createRow('Snapshot', note.snapshot?.kind === 'image' ? 'Image' : 'Text'));
+        
+        let dStr = 'Unknown';
+        if (note.linkMeta?.cachedAt) {
+           dStr = new Date(note.linkMeta.cachedAt).toLocaleString();
+        }
+        container.appendChild(this.createRow('Cached', dStr));
 
-      if (isImage) {
+        if (note.hasUpdateAvailable) {
+           const updateRow = this.createRow('Status', '★ Update Available');
+           const valEl = updateRow.querySelector('.orbit-property-val');
+           if (valEl) {
+               valEl.style.color = 'var(--accent-color, #3b82f6)';
+               valEl.style.fontWeight = 'bold';
+               valEl.title = 'Right-click the note on the canvas to Refresh from Source.';
+           }
+           container.appendChild(updateRow);
+        }
+
+        const actionsConfig = document.createElement('div');
+        actionsConfig.className = 'orbit-properties-group no-label wrap';
+
+        const openBtn = document.createElement('button');
+        openBtn.className = 'orbit-property-button primary';
+        openBtn.textContent = '↗ Open Source Note';
+        openBtn.onclick = () => {
+          if (note.sourceRef && window.app) {
+            window.app.jumpToBoardNote(note.sourceRef.boardId, note.sourceRef.noteId);
+          }
+        };
+        actionsConfig.appendChild(openBtn);
+        container.appendChild(actionsConfig);
+
+      } else if (note.type === 'image' || note.isImage) {
         container.appendChild(this.createRow('Type', 'Image Note'));
         
         const captionRow = this.createEditRow('inspect-caption', 'Caption', note.caption || '', isLegacy, (newVal) => {

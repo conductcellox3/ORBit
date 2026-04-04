@@ -92,6 +92,14 @@ export class State {
     return id;
   }
 
+  addLinkedNote(payload) {
+    if (this.sourceType === 'legacy') return null;
+    const id = crypto.randomUUID();
+    this.notes.set(id, { id, ...payload, parentFrameId: null });
+    this.notify();
+    return id;
+  }
+
   updateNoteText(id, text) {
     const note = this.notes.get(id);
     if (note && note.text !== text) {
@@ -322,5 +330,80 @@ export class State {
       return true;
     }
     return false;
+  }
+
+  async checkLinkedNotesForUpdates() {
+    if (this.sourceType !== 'native') return;
+
+    const targetBoards = new Map();
+    for (const note of this.notes.values()) {
+      if (note.type === 'linked-note' && note.sourceRef) {
+        if (note.sourceRef.boardId === this.boardId) continue; 
+        let list = targetBoards.get(note.sourceRef.boardId);
+        if (!list) {
+          list = [];
+          targetBoards.set(note.sourceRef.boardId, list);
+        }
+        list.push(note);
+      }
+    }
+
+    if (targetBoards.size === 0) return;
+
+    try {
+      const { workspaceManager } = await import('./workspace.js');
+      const { readTextFile } = await import('@tauri-apps/plugin-fs');
+      const { resolve } = await import('@tauri-apps/api/path');
+
+      let needsNotify = false;
+
+      for (const [boardId, notes] of targetBoards.entries()) {
+        const entry = workspaceManager.manifest.boards.find(b => b.id === boardId);
+        if (!entry) continue;
+
+        const boardPath = await workspaceManager.resolveBoardPath(boardId);
+        if (!boardPath) continue;
+
+        try {
+          const statePath = await resolve(boardPath, 'state.json');
+          const rawState = await readTextFile(statePath);
+          const json = JSON.parse(rawState);
+          
+          for (const note of notes) {
+            const noteEntry = json.notes?.find(x => x[0] === note.sourceRef.noteId);
+            if (noteEntry) {
+              const remoteNote = noteEntry[1];
+              const snapshot = note.snapshot || {};
+              let hasChange = false;
+              
+              if (snapshot.text !== remoteNote.text) hasChange = true;
+              if (snapshot.caption !== remoteNote.caption) hasChange = true;
+              if (snapshot.src !== remoteNote.src) hasChange = true;
+              
+              if (hasChange && !note.hasUpdateAvailable) {
+                note.hasUpdateAvailable = true;
+                needsNotify = true;
+              } else if (!hasChange && note.hasUpdateAvailable) {
+                note.hasUpdateAvailable = false;
+                needsNotify = true;
+              }
+            } else {
+              if (!note.sourceNoteMissing) {
+                note.sourceNoteMissing = true;
+                needsNotify = true;
+              }
+            }
+          }
+        } catch (e) {
+          console.error(`Failed to check updates for remote board ${boardId}`, e);
+        }
+      }
+
+      if (needsNotify) {
+        this.notify();
+      }
+    } catch (e) {
+      console.error("Failed to execute checkLinkedNotesForUpdates:", e);
+    }
   }
 }

@@ -46,6 +46,8 @@ export class App {
     if (this.onBoardChanged) this.onBoardChanged(this.state.boardId);
     if (this.onTitleChanged) this.onTitleChanged(this.state.title);
     if (this.onBoardLoad) this.onBoardLoad(this.state.canvas);
+    
+    this.state.checkLinkedNotesForUpdates();
   }
 
   async loadLegacyBoard(legacySnapshot) {
@@ -98,6 +100,7 @@ export class App {
     const note = this.state.notes.get(noteId);
     if (!note) return;
 
+    this.pendingFocusNoteId = noteId;
     this.selection.clear();
     this.selection.select(noteId, 'note');
 
@@ -138,6 +141,27 @@ export class App {
       this.onBoardLoad(this.state.canvas);
     }
   }
+
+  async jumpToBoardNote(boardId, noteId) {
+    if (this.state.boardId === boardId) {
+      this.jumpToNoteCenter(noteId);
+      this.selection.clear();
+      this.selection.select(noteId, 'note');
+      return;
+    }
+
+    // Otherwise, load board
+    await this.loadNativeBoard(boardId);
+    
+    // Defer the selection/jump slightly until layout
+    requestAnimationFrame(() => {
+      this.jumpToNoteCenter(noteId);
+      this.selection.clear();
+      this.selection.select(noteId, 'note');
+    });
+  }
+
+
 
   toggleSearch() {
     if (this.onToggleSearch) {

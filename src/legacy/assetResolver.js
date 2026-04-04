@@ -40,6 +40,20 @@ export class AssetResolver {
       return relativeSrc; // Fallback
     }
   }
+
+  async resolveImageFromDir(relativeSrc, sourceBoardDirName) {
+    if (!relativeSrc) return null;
+    if (relativeSrc.startsWith('http')) return relativeSrc; // External URL
+    if (relativeSrc.startsWith('data:')) return relativeSrc; // Base64 inline
+
+    const basePath = await workspaceLoader.resolvePath();
+    if (basePath && basePath.includes(':')) {
+      const absolutePath = `${basePath}/boards/${sourceBoardDirName}/${relativeSrc}`;
+      return convertFileSrc(absolutePath);
+    } else {
+      return relativeSrc;
+    }
+  }
 }
 
 export const assetResolver = new AssetResolver();
