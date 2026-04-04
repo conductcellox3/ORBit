@@ -15,6 +15,7 @@ import { BoardsGraphView } from './render/boardsGraphView.js';
 import { PrintLayout } from './core/export/printLayout.js';
 import { BoardSnapshot } from './core/export/boardSnapshot.js';
 import { ExportPanel } from './shell/exportPanel.js';
+import { SettingsPanel } from './shell/settingsPanel.js';
 
 async function bootstrap() {
   const app = new App();
@@ -32,6 +33,7 @@ async function bootstrap() {
   app.propertiesPanel = new PropertiesPanel(app);
   app.searchUI = new SearchUI(app);
   app.exportPanel = new ExportPanel(app, 'export-panel');
+  app.settingsPanel = new SettingsPanel(app, 'settings-panel');
   
   app.onToggleSearch = () => {
     app.searchUI.toggle();

@@ -4,6 +4,7 @@ import { workspaceManager } from '../core/workspace.js';
 import { ContextMenu } from './contextMenu.js';
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+import { appSettings } from '../core/settings.js';
 
 export class Explorer {
   constructor(app, containerId) {
@@ -340,36 +341,38 @@ export class Explorer {
     }
     
     // 2. Legacy Boards Section
-    const legacyHeader = document.createElement('div');
-    legacyHeader.style.fontSize = '10px';
-    legacyHeader.style.textTransform = 'uppercase';
-    legacyHeader.style.color = 'var(--color-text-muted)';
-    legacyHeader.style.margin = '16px 0 4px 6px';
-    legacyHeader.textContent = 'Legacy Archive (Read-Only)';
-    treeContainer.appendChild(legacyHeader);
+    if (appSettings.getShowLegacyArchive()) {
+      const legacyHeader = document.createElement('div');
+      legacyHeader.style.fontSize = '10px';
+      legacyHeader.style.textTransform = 'uppercase';
+      legacyHeader.style.color = 'var(--color-text-muted)';
+      legacyHeader.style.margin = '16px 0 4px 6px';
+      legacyHeader.textContent = 'Legacy Archive (Read-Only)';
+      treeContainer.appendChild(legacyHeader);
 
-    const legacyManifest = await workspaceLoader.loadManifest();
-    
-    if (!legacyManifest || !legacyManifest.boards || legacyManifest.boards.length === 0) {
-      const emptyEl = document.createElement('div');
-      emptyEl.className = 'mock-tree-item';
-      emptyEl.style.opacity = '0.5';
-      emptyEl.textContent = 'No legacy boards found.';
-      treeContainer.appendChild(emptyEl);
-    } else {
-      for (const board of legacyManifest.boards) {
-        const itemEl = this.createTreeItem(board, '🗄️', true);
-        if (this.app.state.boardId === board.id) itemEl.classList.add('is-active');
-        
-        itemEl.addEventListener('click', async () => {
-          const legacyData = await workspaceLoader.loadBoardState(board.id, board.slug);
-          if (legacyData) {
-            const snapshot = legacyAdapter.adapt(board, legacyData.meta, legacyData.state);
-            await this.app.loadLegacyBoard(snapshot);
-            this.highlightItem(treeContainer, itemEl);
-          }
-        });
-        treeContainer.appendChild(itemEl);
+      const legacyManifest = await workspaceLoader.loadManifest();
+      
+      if (!legacyManifest || !legacyManifest.boards || legacyManifest.boards.length === 0) {
+        const emptyEl = document.createElement('div');
+        emptyEl.className = 'mock-tree-item';
+        emptyEl.style.opacity = '0.5';
+        emptyEl.textContent = 'No legacy boards found.';
+        treeContainer.appendChild(emptyEl);
+      } else {
+        for (const board of legacyManifest.boards) {
+          const itemEl = this.createTreeItem(board, '🗄️', true);
+          if (this.app.state.boardId === board.id) itemEl.classList.add('is-active');
+          
+          itemEl.addEventListener('click', async () => {
+            const legacyData = await workspaceLoader.loadBoardState(board.id, board.slug);
+            if (legacyData) {
+              const snapshot = legacyAdapter.adapt(board, legacyData.meta, legacyData.state);
+              await this.app.loadLegacyBoard(snapshot);
+              this.highlightItem(treeContainer, itemEl);
+            }
+          });
+          treeContainer.appendChild(itemEl);
+        }
       }
     }
     
