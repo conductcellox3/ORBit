@@ -163,6 +163,8 @@ export class NoteRenderer {
       el.classList.toggle('is-selected', isNoteSelection && this.app.selection.has(id));
     }
 
+    this.updateBacklinkBadges();
+
     if (this.app.pendingFocusNoteId) {
       const focusId = this.app.pendingFocusNoteId;
       this.app.pendingFocusNoteId = null;
@@ -516,5 +518,86 @@ export class NoteRenderer {
     }
     
     return el;
+  }
+
+  updateBacklinkBadges() {
+    const notes = this.app.state.notes;
+    for (const [id, el] of this.elements.entries()) {
+      const note = notes.get(id);
+      if (!note || note.type === 'linked-note' || note.type === 'frame') continue;
+      
+      const refs = workspaceManager.getNoteReferences(this.app.state.boardId, id);
+      let badge = el.querySelector('.orbit-backlink-badge');
+      
+      if (refs && refs.length > 0) {
+        if (!badge) {
+          badge = document.createElement('div');
+          badge.className = 'orbit-backlink-badge';
+          badge.title = 'Referenced by linked notes. Open Properties to inspect.';
+          // Top right corner rules
+          badge.style.position = 'absolute';
+          badge.style.top = '-6px';
+          badge.style.right = '-6px';
+          badge.style.display = 'flex';
+          badge.style.alignItems = 'center';
+          badge.style.justifyContent = 'center';
+          badge.style.gap = '2px';
+          badge.style.padding = '2px 4px';
+          badge.style.fontSize = '10px';
+          badge.style.color = 'var(--color-text-muted, #64748b)';
+          badge.style.background = 'var(--bg-layer-1, #ffffff)';
+          badge.style.border = '1px solid var(--border-color, #cbd5e1)';
+          badge.style.borderRadius = '4px';
+          badge.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+          badge.style.zIndex = '10';
+          badge.style.opacity = '0.7';
+          badge.style.cursor = 'pointer';
+          
+          badge.innerHTML = `
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            </svg>
+            <span class="backlink-count" style="font-weight: 600;"></span>
+          `;
+          
+          Object.assign(badge.style, {
+            transition: 'opacity 0.2s',
+          });
+          badge.onmouseenter = () => badge.style.opacity = '1';
+          badge.onmouseleave = () => badge.style.opacity = '0.7';
+          
+          badge.onclick = (e) => {
+            e.stopPropagation();
+            this.app.selection.clear();
+            this.app.selection.select(id, 'note');
+            if (this.app.propertiesPanel) {
+               this.app.propertiesPanel.render();
+               if (!this.app.propertiesPanel.isOpen && this.app.onToggleSearch) {
+                  // Not strictly toggling search, but properties panel is attached to searchUI currently
+                  // the user has to open the right side panel
+               }
+            }
+          };
+          el.appendChild(badge);
+        }
+        
+        const countSpan = badge.querySelector('.backlink-count');
+        
+        const availableW = parseFloat(note.w) || parseFloat(note.width) || 250;
+        if (availableW < 80) {
+          if (countSpan) countSpan.style.display = 'none';
+          badge.style.padding = '2px';
+        } else {
+          if (countSpan) {
+            countSpan.style.display = 'inline';
+            countSpan.textContent = refs.length;
+          }
+          badge.style.padding = '2px 4px';
+        }
+      } else {
+        if (badge) badge.remove();
+      }
+    }
   }
 }

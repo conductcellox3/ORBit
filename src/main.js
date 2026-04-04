@@ -20,12 +20,21 @@ async function bootstrap() {
   
   const shell = new ShellLayout(app);
   shell.mount();
-  
+  app.shell = shell;
   app.propertiesPanel = new PropertiesPanel(app);
   app.searchUI = new SearchUI(app);
   
   app.onToggleSearch = () => {
     app.searchUI.toggle();
+  };
+  
+  app.onLinkIndexUpdated = () => {
+    if (app.propertiesPanel) {
+      app.propertiesPanel.render();
+    }
+    if (canvas && canvas.notesRenderer) {
+      canvas.notesRenderer.updateBacklinkBadges();
+    }
   };
   
   const edgeDraw = new EdgeDrawInteraction(app, null);

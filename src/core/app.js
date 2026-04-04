@@ -16,6 +16,7 @@ export class App {
 
   async init() {
     await workspaceManager.init();
+    await workspaceManager.buildCrossBoardLinkIndex();
     
     // Look for last open board, or null to auto-create
     const lastId = workspaceManager.manifest?.lastOpenedBoardId;
@@ -73,20 +74,30 @@ export class App {
     if (this.onBoardLoad) this.onBoardLoad(this.state.canvas);
   }
 
+  _updateLinkIndex() {
+    if (this.state.sourceType === 'native' && this.state.boardId) {
+       workspaceManager.updateLinkIndexIncremental(this.state.boardId, this.state.title, this.state.notes);
+       if (this.onLinkIndexUpdated) this.onLinkIndexUpdated();
+    }
+  }
+
   commitHistory() {
     this.history.commit();
+    this._updateLinkIndex();
     this.save().catch(e => console.error(e));
   }
 
   undo() {
     this.history.undo();
     this.selection.clear();
+    this._updateLinkIndex();
     this.save().catch(e => console.error(e));
   }
 
   redo() {
     this.history.redo();
     this.selection.clear();
+    this._updateLinkIndex();
     this.save().catch(e => console.error(e));
   }
 

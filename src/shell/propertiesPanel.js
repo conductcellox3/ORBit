@@ -48,7 +48,7 @@ export class PropertiesPanel {
     
     if (this.activeTab === 'board') {
       this.renderBoardMode();
-      this.currentRenderedId = 'BOARD';
+      this.currentRenderedId = 'BOARD:' + this.app.state.boardId;
     } else {
       const ids = Array.from(this.app.selection.selectedIds);
       if (ids.length === 1) {
@@ -73,9 +73,18 @@ export class PropertiesPanel {
     }
 
     if (this.activeTab === 'board') {
+      if (this.currentRenderedId !== 'BOARD:' + this.app.state.boardId) {
+         this.fullRender();
+         return;
+      }
       this.updateValueElement('board-title', this.app.state.title || 'Untitled Board');
-      // Topic is in metadata now, but app.state doesn't have it natively. It's stored in workspaceManager.manifest.
-      // We will handle it by reading from manifest.
+      
+      let currentTopic = '';
+      if (this.app.state.boardId && workspaceManager.manifest) {
+        const entry = workspaceManager.manifest.boards.find(b => b.id === this.app.state.boardId);
+        if (entry) currentTopic = entry.topic || '';
+      }
+      this.updateValueElement('board-topic', currentTopic);
     } else if (this.activeTab === 'inspect') {
       const ids = Array.from(this.app.selection.selectedIds);
       if (ids.length === 1) {
@@ -182,9 +191,12 @@ export class PropertiesPanel {
       if (this.app.state.boardId) {
         workspaceManager.updateBoardTopic(this.app.state.boardId, newVal).then(() => {
           this.softUpdate(); // Soft update after write
+          if (this.app.shell && this.app.shell.explorer) {
+             this.app.shell.explorer.mount(); // Refresh explorer
+          }
         });
       }
-    });
+    }, false, () => workspaceManager.getKnownBoardTopics());
     container.appendChild(topicRow);
 
     // Metadata
@@ -382,6 +394,98 @@ export class PropertiesPanel {
             container.appendChild(markerContainer);
           }
         }
+
+        // -----------------------------
+        // Cross-Board References
+        // -----------------------------
+        // Wait! Let's just remove it from here.
+      }
+      
+      // Now, apply Cross-Board References for all non-linked-note types
+      if (note.type !== 'linked-note') {
+        const refs = workspaceManager.getNoteReferences(this.app.state.boardId, id);
+        
+        const refsGroup = document.createElement('div');
+        refsGroup.className = 'orbit-properties-group no-label';
+        refsGroup.style.marginTop = '16px';
+        refsGroup.style.paddingTop = '16px';
+        refsGroup.style.borderTop = '1px solid var(--border-color)';
+        
+        const refsLabel = document.createElement('div');
+        refsLabel.textContent = 'Referenced By';
+        refsLabel.style.fontSize = '10px';
+        refsLabel.style.color = 'var(--color-text-muted)';
+        refsLabel.style.marginBottom = '8px';
+        refsLabel.style.textTransform = 'uppercase';
+        refsGroup.appendChild(refsLabel);
+
+        if (refs && refs.length > 0) {
+          // Stable sort
+          const sortedRefs = [...refs].sort((a, b) => {
+            const ta = a.boardTitle || '';
+            const tb = b.boardTitle || '';
+            return ta.localeCompare(tb);
+          });
+          
+          const listCont = document.createElement('div');
+          listCont.style.display = 'flex';
+          listCont.style.flexDirection = 'column';
+          listCont.style.gap = '6px';
+          
+          for (const ref of sortedRefs) {
+            const row = document.createElement('div');
+            row.style.display = 'flex';
+            row.style.alignItems = 'center';
+            row.style.justifyContent = 'space-between';
+            row.style.padding = '4px 8px';
+            row.style.background = 'var(--bg-layer-1)';
+            row.style.borderRadius = '4px';
+            row.style.border = '1px solid var(--border-color)';
+            
+            const info = document.createElement('div');
+            info.style.display = 'flex';
+            info.style.alignItems = 'center';
+            info.style.gap = '6px';
+            info.style.overflow = 'hidden';
+            
+            const icon = document.createElement('span');
+            icon.textContent = ref.snapshotKind === 'image' ? '🖼️' : '📄';
+            icon.style.fontSize = '12px';
+            
+            const title = document.createElement('span');
+            title.textContent = ref.boardTitle || 'Unknown';
+            title.style.fontSize = '11px';
+            title.style.whiteSpace = 'nowrap';
+            title.style.overflow = 'hidden';
+            title.style.textOverflow = 'ellipsis';
+            
+            info.appendChild(icon);
+            info.appendChild(title);
+            
+            const jmpBtn = document.createElement('button');
+            jmpBtn.className = 'orbit-property-button';
+            jmpBtn.style.padding = '2px 6px';
+            jmpBtn.style.fontSize = '10px';
+            jmpBtn.textContent = '↗ Jump';
+            jmpBtn.onclick = () => {
+              if (window.app) window.app.jumpToBoardNote(ref.boardId, ref.noteId);
+            };
+            
+            row.appendChild(info);
+            row.appendChild(jmpBtn);
+            listCont.appendChild(row);
+          }
+          refsGroup.appendChild(listCont);
+        } else {
+          const emptySt = document.createElement('div');
+          emptySt.textContent = 'No cross-board references';
+          emptySt.style.fontSize = '11px';
+          emptySt.style.color = 'var(--color-text-muted)';
+          emptySt.style.fontStyle = 'italic';
+          refsGroup.appendChild(emptySt);
+        }
+        
+        container.appendChild(refsGroup);
       }
 
     } else if (type === 'frame' && frame) {
@@ -424,9 +528,15 @@ export class PropertiesPanel {
     return group;
   }
 
-  createEditRow(id, label, initialValue, isLegacy, onChange) {
+  createEditRow(id, label, initialValue, isLegacy, onChange, isMultiLine = false, getSuggestions = null) {
     const group = document.createElement('div');
     group.className = 'orbit-properties-group';
+    
+    // For suggestions we need position relative
+    if (getSuggestions) {
+      group.style.position = 'relative';
+      group.style.overflow = 'visible'; // allow dropdown to break out
+    }
     
     const labelEl = document.createElement('div');
     labelEl.className = 'orbit-property-label';
@@ -436,6 +546,7 @@ export class PropertiesPanel {
     input.type = 'text';
     input.className = 'orbit-property-input';
     input.id = `prop-${id}`;
+    input.autocomplete = 'off'; // prevent native autocomplete
     input.value = initialValue;
     input.disabled = isLegacy;
 
@@ -448,8 +559,12 @@ export class PropertiesPanel {
     };
 
     input.addEventListener('blur', () => { 
-        commit(); 
-        isCommitted = false; // Reset for next edit exactly like inline
+        // Delay commit slightly so suggestion clicks can fire
+        setTimeout(() => {
+          commit(); 
+          isCommitted = false; // Reset for next edit exactly like inline
+          if (suggestionBox) suggestionBox.style.display = 'none';
+        }, 150);
     });
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
@@ -461,7 +576,74 @@ export class PropertiesPanel {
     });
 
     group.appendChild(labelEl);
-    group.appendChild(input);
+    
+    const inputWrapper = document.createElement('div');
+    inputWrapper.style.position = 'relative';
+    inputWrapper.style.width = '100%';
+    inputWrapper.style.flex = '2';
+    inputWrapper.appendChild(input);
+
+    let suggestionBox = null;
+    if (getSuggestions && !isLegacy) {
+      suggestionBox = document.createElement('div');
+      suggestionBox.style.display = 'none';
+      suggestionBox.style.position = 'absolute';
+      suggestionBox.style.top = '100%';
+      suggestionBox.style.left = '0';
+      suggestionBox.style.width = '100%';
+      suggestionBox.style.background = 'var(--bg-panel, #FFFFFF)';
+      suggestionBox.style.border = '1px solid var(--border-color)';
+      suggestionBox.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+      suggestionBox.style.zIndex = '1000';
+      suggestionBox.style.maxHeight = '150px';
+      suggestionBox.style.overflowY = 'auto';
+      suggestionBox.style.borderRadius = '0 0 4px 4px';
+      
+      const renderSuggestions = () => {
+         const topics = getSuggestions();
+         suggestionBox.innerHTML = '';
+         const q = input.value.toLowerCase().trim();
+         const matches = topics.filter(t => t.toLowerCase().includes(q));
+         if (matches.length === 0) {
+           suggestionBox.style.display = 'none';
+           return;
+         }
+         matches.forEach(t => {
+           const opt = document.createElement('div');
+           opt.textContent = t;
+           opt.style.padding = '4px 6px';
+           opt.style.fontSize = '11px';
+           opt.style.cursor = 'pointer';
+           opt.style.color = 'var(--color-text-main)';
+           opt.addEventListener('mouseenter', () => {
+             opt.style.backgroundColor = 'var(--bg-hover, rgba(0,0,0,0.05))';
+           });
+           opt.addEventListener('mouseleave', () => {
+              opt.style.backgroundColor = 'transparent';
+           });
+           opt.addEventListener('mousedown', (e) => {
+             e.preventDefault(); 
+             input.value = t;
+             commit();
+             suggestionBox.style.display = 'none';
+             input.blur();
+           });
+           suggestionBox.appendChild(opt);
+         });
+         suggestionBox.style.display = 'block';
+      };
+      
+      input.addEventListener('input', renderSuggestions);
+      input.addEventListener('focus', renderSuggestions);
+      
+      inputWrapper.appendChild(suggestionBox);
+      
+      // Override group flex behavior for wrapper
+      group.style.alignItems = 'flex-start';
+      labelEl.style.marginTop = '6px';
+    }
+
+    group.appendChild(inputWrapper);
     return group;
   }
 

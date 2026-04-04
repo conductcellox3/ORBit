@@ -12,6 +12,7 @@ export class NativeWorkspaceManager {
     this.workspaceDirName = 'workspace';
     this.manifestName = 'boards.json';
     this.manifest = null;
+    this.crossBoardLinkIndex = new Map(); // Map<`${sourceBoardId}::${sourceNoteId}`, Array<{boardId, noteId, boardTitle, snapshotKind}>>
   }
 
   async init() {
@@ -382,6 +383,80 @@ export class NativeWorkspaceManager {
     const boardPath = await this.resolveBoardPath(boardId);
     const { resolve } = await import('@tauri-apps/api/path');
     return await resolve(boardPath, relativeSrc);
+  }
+
+  async buildCrossBoardLinkIndex() {
+    if (!this.manifest || !this.manifest.boards) return;
+    this.crossBoardLinkIndex.clear();
+    
+    // Dynamically import required tauri path/fs utilities
+    const { resolve } = await import('@tauri-apps/api/path');
+    
+    for (const board of this.manifest.boards) {
+      try {
+        const boardPath = await this.resolveBoardPath(board.id);
+        if (!boardPath) continue;
+        const statePath = await resolve(boardPath, 'state.json');
+        if (await exists(statePath, this.basePathObj)) {
+          const content = await readTextFile(statePath, this.basePathObj);
+          const state = JSON.parse(content);
+          if (state && state.notes) {
+            for (const [noteId, note] of state.notes) {
+              if (note.type === 'linked-note' && note.sourceRef) {
+                const compositeKey = `${note.sourceRef.boardId}::${note.sourceRef.noteId}`;
+                let refs = this.crossBoardLinkIndex.get(compositeKey);
+                if (!refs) {
+                  refs = [];
+                  this.crossBoardLinkIndex.set(compositeKey, refs);
+                }
+                refs.push({
+                  boardId: board.id,
+                  noteId: noteId,
+                  boardTitle: board.title,
+                  snapshotKind: note.snapshot?.kind || 'text'
+                });
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // skip failed boards
+      }
+    }
+  }
+
+  getNoteReferences(boardId, noteId) {
+    const compositeKey = `${boardId}::${noteId}`;
+    return this.crossBoardLinkIndex.get(compositeKey) || [];
+  }
+
+  updateLinkIndexIncremental(boardId, boardTitle, updatedNotesMap) {
+    // 1. Remove all old references originating FROM this board
+    for (const refs of this.crossBoardLinkIndex.values()) {
+      for (let i = refs.length - 1; i >= 0; i--) {
+        if (refs[i].boardId === boardId) {
+          refs.splice(i, 1);
+        }
+      }
+    }
+    
+    // 2. Add current references
+    for (const [noteId, note] of updatedNotesMap) {
+      if (note.type === 'linked-note' && note.sourceRef) {
+        const compositeKey = `${note.sourceRef.boardId}::${note.sourceRef.noteId}`;
+        let refs = this.crossBoardLinkIndex.get(compositeKey);
+        if (!refs) {
+          refs = [];
+          this.crossBoardLinkIndex.set(compositeKey, refs);
+        }
+        refs.push({
+          boardId: boardId,
+          noteId: noteId,
+          boardTitle: boardTitle,
+          snapshotKind: note.snapshot?.kind || 'text'
+        });
+      }
+    }
   }
 }
 
