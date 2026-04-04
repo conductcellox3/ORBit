@@ -101,8 +101,16 @@ export class App {
     this.selection.select(noteId, 'note');
 
     const zoom = this.state.canvas.zoom || 1;
-    const cw = window.innerWidth;
-    const ch = window.innerHeight;
+    let cw = window.innerWidth;
+    let ch = window.innerHeight;
+    
+    // Use the actual canvas container bounds, removing Explorer/RightPane offsets!
+    const container = document.getElementById('canvas-container');
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      cw = rect.width;
+      ch = rect.height;
+    }
 
     let w = note.width || 400;
     let h = note.height;
@@ -127,6 +135,12 @@ export class App {
     
     if (this.onBoardLoad) {
       this.onBoardLoad(this.state.canvas);
+    }
+  }
+
+  toggleSearch() {
+    if (this.onToggleSearch) {
+      this.onToggleSearch();
     }
   }
 }

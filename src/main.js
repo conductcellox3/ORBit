@@ -8,15 +8,24 @@ import { ShellLayout } from './shell/layout.js';
 import { ImageViewer } from './render/imageViewer.js';
 import { PropertiesPanel } from './shell/propertiesPanel.js';
 
+import { SearchEngine } from './core/search.js';
+import { SearchUI } from './shell/searchUI.js';
+
 async function bootstrap() {
   const app = new App();
   app.imageViewer = new ImageViewer(app);
+  app.searchEngine = new SearchEngine(app);
   await app.init();
   
   const shell = new ShellLayout(app);
   shell.mount();
   
   app.propertiesPanel = new PropertiesPanel(app);
+  app.searchUI = new SearchUI(app);
+  
+  app.onToggleSearch = () => {
+    app.searchUI.toggle();
+  };
   
   const edgeDraw = new EdgeDrawInteraction(app, null);
   const drag = new DragInteraction(app, null, edgeDraw);
