@@ -11,7 +11,13 @@ export class BoardsGraphView {
     this.panY = 0;
     this.zoom = 1;
     this.isDraggingViewport = false;
+    this.isDraggingViewport = false;
     this.draggingNode = null;
+    
+    // Neighborhood and Inspection state
+    this.selectedGraphNodeId = null;
+    this.hoveredGraphNodeId = null;
+    this.hoveredEdge = null;
     
     // Derived View Data
     this.nodes = [];
@@ -74,6 +80,25 @@ export class BoardsGraphView {
     this.graphPlane.appendChild(this.edgesCanvas);
     this.graphPlane.appendChild(this.nodesDiv);
     this.graphRoot.appendChild(this.graphPlane);
+    
+    // Edge Detail Tooltip
+    this.edgeTooltip = document.createElement('div');
+    this.edgeTooltip.id = 'graph-edge-tooltip';
+    this.edgeTooltip.className = 'boards-graph-tooltip';
+    this.edgeTooltip.style.position = 'absolute';
+    this.edgeTooltip.style.pointerEvents = 'none';
+    this.edgeTooltip.style.background = 'var(--bg-layer-2, white)';
+    this.edgeTooltip.style.border = '1px solid var(--border-color, #ccc)';
+    this.edgeTooltip.style.borderRadius = '8px';
+    this.edgeTooltip.style.padding = '8px 12px';
+    this.edgeTooltip.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+    this.edgeTooltip.style.fontSize = '12px';
+    this.edgeTooltip.style.color = 'var(--text-main, #222)';
+    this.edgeTooltip.style.zIndex = '10000';
+    this.edgeTooltip.style.opacity = '0';
+    this.edgeTooltip.style.transition = 'opacity 0.2s ease';
+    this.graphRoot.appendChild(this.edgeTooltip);
+    
     this.container.appendChild(this.graphRoot);
     
     // Add Mouse Wheel handling for zoom
@@ -106,7 +131,10 @@ export class BoardsGraphView {
            return;
        }
 
-       if (!this.isDraggingViewport) return;
+       if (!this.isDraggingViewport) {
+           this.handleEdgeHoverHitTest(e);
+           return;
+       }
        this.panX += e.movementX;
        this.panY += e.movementY;
        this.updatePlaneTransform();
@@ -116,6 +144,20 @@ export class BoardsGraphView {
        this.isDraggingViewport = false;
        this.draggingNode = null;
     });
+
+    // Background click clearing
+    this.graphRoot.addEventListener('click', (e) => {
+        // If clicked directly on the background (not a node label)
+        if (e.target === this.graphRoot || e.target === this.graphPlane || e.target === this.edgesCanvas) {
+            this.selectedGraphNodeId = null;
+            this.updateNodeStyles();
+            this.dirtyRender();
+            if (this.app.propertiesPanel) {
+                this.app.selection.clear(); // Ensure native is clear too
+                this.app.propertiesPanel.fullRender();
+            }
+        }
+    });
     
     // Listen to model updates purely locally so we don't spam when backgrounded
     this.app.graphModel.onGraphUpdated = (nodes, edges) => {
@@ -124,6 +166,81 @@ export class BoardsGraphView {
         this.edges = edges;
         this.triggerLayoutUpdate();
     };
+  }
+
+  pointToLineDistance(px, py, x1, y1, x2, y2) {
+      let l2 = (x1 - x2) ** 2 + (y1 - y2) ** 2;
+      if (l2 === 0) return Math.sqrt((px - x1) ** 2 + (py - y1) ** 2);
+      let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+      t = Math.max(0, Math.min(1, t));
+      let projX = x1 + t * (x2 - x1);
+      let projY = y1 + t * (y2 - y1);
+      return Math.sqrt((px - projX) ** 2 + (py - projY) ** 2);
+  }
+
+  handleEdgeHoverHitTest(e) {
+      // If hovering a node, let node's mouseenter handle it, skip edge hover
+      if (e.target && e.target.classList && e.target.classList.contains('board-graph-node')) {
+          return;
+      }
+      
+      const rect = this.graphRoot.getBoundingClientRect();
+      const localX = e.clientX - rect.left;
+      const localY = e.clientY - rect.top;
+      
+      const planeX = (localX - this.panX) / this.zoom;
+      const planeY = (localY - this.panY) / this.zoom;
+
+      let foundEdge = null;
+      let minDist = Number.MAX_VALUE;
+      
+      // Hit testing with basic bounds reject
+      for (const edge of this.visibleEdges || []) {
+          const minEX = Math.min(edge.source.x, edge.target.x) - 10;
+          const maxEX = Math.max(edge.source.x, edge.target.x) + 10;
+          const minEY = Math.min(edge.source.y, edge.target.y) - 10;
+          const maxEY = Math.max(edge.source.y, edge.target.y) + 10;
+          
+          if (planeX < minEX || planeX > maxEX || planeY < minEY || planeY > maxEY) continue;
+
+          const dist = this.pointToLineDistance(planeX, planeY, edge.source.x, edge.source.y, edge.target.x, edge.target.y);
+          const hitRadius = Math.max(8, (edge.weight * 2) + 4) / this.zoom; 
+          
+          if (dist < hitRadius && dist < minDist) {
+              minDist = dist;
+              foundEdge = edge;
+          }
+      }
+      
+      if (this.hoveredEdge !== foundEdge) {
+          this.hoveredEdge = foundEdge;
+          this.updateTooltipDOM(localX, localY);
+          this.dirtyRender(); // Rerender edges
+      } else if (this.hoveredEdge) {
+          // just move tooltip
+          this.edgeTooltip.style.left = (localX + 15) + 'px';
+          this.edgeTooltip.style.top = (localY + 15) + 'px';
+      }
+  }
+
+  updateTooltipDOM(mouseX, mouseY) {
+      if (!this.hoveredEdge) {
+          this.edgeTooltip.style.opacity = '0';
+          return;
+      }
+      
+      const inCount = this.hoveredEdge.inbound || 0;
+      const outCount = this.hoveredEdge.outbound || 0;
+      
+      this.edgeTooltip.innerHTML = `
+          <div style="font-weight:bold; margin-bottom:4px;">${this.hoveredEdge.source.title} ↔ ${this.hoveredEdge.target.title}</div>
+          <div style="color:var(--text-muted)">Total Links: ${this.hoveredEdge.weight}</div>
+          <div style="color:var(--text-muted); font-size:10px;">(In: ${inCount}, Out: ${outCount})</div>
+      `;
+      
+      this.edgeTooltip.style.left = (mouseX + 15) + 'px';
+      this.edgeTooltip.style.top = (mouseY + 15) + 'px';
+      this.edgeTooltip.style.opacity = '1';
   }
 
   handleWheel(e) {
@@ -315,6 +432,14 @@ export class BoardsGraphView {
      
      const activeNodeSet = new Set(this.visibleNodes.map(n => n.id));
      
+     // 1.5 Clear selection if no longer visible
+     if (this.selectedGraphNodeId && !activeNodeSet.has(this.selectedGraphNodeId)) {
+         this.selectedGraphNodeId = null;
+         if (this.app.propertiesPanel && this.app.isGraphActive) {
+             this.app.propertiesPanel.fullRender();
+         }
+     }
+     
      this.visibleEdges = this.edges.filter(e => {
          return activeNodeSet.has(e.source.id) && 
                 activeNodeSet.has(e.target.id) && 
@@ -357,20 +482,47 @@ export class BoardsGraphView {
 
   // Updates X/Y positions on screen
   dirtyRender() {
+      // Common state
+      const activeBase = this.selectedGraphNodeId || this.hoveredGraphNodeId;
+      const oneHopIds = new Set();
+      if (activeBase) {
+          oneHopIds.add(activeBase);
+          for (const e of this.visibleEdges || []) {
+              if (e.source.id === activeBase) oneHopIds.add(e.target.id);
+              if (e.target.id === activeBase) oneHopIds.add(e.source.id);
+          }
+      }
+      
+      const hoveredEdgeIdStr = this.hoveredEdge ? `${this.hoveredEdge.source.id}-${this.hoveredEdge.target.id}` : null;
+      
       // Redraw Canvas Edges
       this.ctx.clearRect(0, 0, this.edgesCanvas.width, this.edgesCanvas.height);
       const centerOffsetX = 4000;
       const centerOffsetY = 4000;
-
-      const selectedId = Array.from(this.app.selection.selectedIds)[0];
 
       this.ctx.save();
       this.ctx.translate(centerOffsetX, centerOffsetY);
       
       for (const e of this.visibleEdges) {
           const thickness = Math.max(0.5, Math.log1p(e.weight) * 2);
-          const isSelectedPath = selectedId && (e.source.id === selectedId || e.target.id === selectedId);
-          const isDimmedState = selectedId && !isSelectedPath;
+          
+          let isEmphasized = false;
+          let isDimmed = false;
+          
+          if (activeBase) {
+              // Dimmed by default if there's an active base
+              isDimmed = true;
+              
+              if (e.source.id === activeBase || e.target.id === activeBase) {
+                  isEmphasized = true;
+                  isDimmed = false;
+              }
+          }
+          
+          if (hoveredEdgeIdStr && `${e.source.id}-${e.target.id}` === hoveredEdgeIdStr) {
+              isEmphasized = true;
+              isDimmed = false;
+          }
 
           this.ctx.beginPath();
           this.ctx.moveTo(e.source.x, e.source.y);
@@ -378,10 +530,13 @@ export class BoardsGraphView {
           
           this.ctx.lineWidth = thickness;
           
-          if (isDimmedState) {
+          if (isDimmed) {
               this.ctx.strokeStyle = 'rgba(0,0,0, 0.05)';
+          } else if (isEmphasized) {
+              this.ctx.strokeStyle = `rgba(0,0,0, 0.4)`;
+              this.ctx.lineWidth = thickness + 1;
           } else {
-              this.ctx.strokeStyle = `rgba(0,0,0, ${isSelectedPath ? 0.3 : 0.15})`;
+              this.ctx.strokeStyle = `rgba(0,0,0, 0.15)`;
           }
           
           this.ctx.stroke();
@@ -396,23 +551,39 @@ export class BoardsGraphView {
       for (const node of this.visibleNodes) {
           const el = lookupDOMMap.get(node.id);
           if (el) {
-              el.style.transform = `translate(${Math.round(node.x)}px, ${Math.round(node.y)}px)`;
-              
-              if (selectedId === node.id) {
-                  el.style.borderColor = 'var(--text-main, #333)';
-                  el.style.background = 'white';
-                  el.style.zIndex = '100';
-              } else if (selectedId) {
-                  // Dim non-selected
-                  el.style.opacity = '0.4';
-                  el.style.zIndex = '10';
-                  el.style.borderColor = 'var(--border-color, #ccc)';
+              let targetScale = 1;
+
+              if (activeBase) {
+                  if (node.id === activeBase) {
+                      el.style.opacity = '1';
+                      el.style.zIndex = '100';
+                      el.style.borderColor = 'var(--text-main, #333)';
+                      el.style.background = 'white';
+                      
+                      if (this.selectedGraphNodeId === node.id) targetScale = 1.05;
+                  } else if (oneHopIds.has(node.id)) {
+                      el.style.opacity = '1';
+                      el.style.zIndex = '50';
+                      el.style.borderColor = 'var(--border-color, #ccc)';
+                      el.style.background = 'var(--bg-layer-1, #f9f9f9)';
+                  } else {
+                      el.style.opacity = '0.3';
+                      el.style.zIndex = '10';
+                      el.style.borderColor = 'var(--border-color, #ccc)';
+                      el.style.background = 'var(--bg-layer-1, #f9f9f9)';
+                  }
               } else {
-                  // Normal view
                   el.style.opacity = '1';
                   el.style.zIndex = '10';
                   el.style.borderColor = 'var(--border-color, #ccc)';
+                  el.style.background = 'var(--bg-layer-1, #f9f9f9)';
               }
+              
+              if (this.hoveredGraphNodeId === node.id && !this.selectedGraphNodeId) {
+                  el.style.background = 'var(--bg-hover, #efefef)';
+              }
+
+              el.style.transform = `translate(${Math.round(node.x)}px, ${Math.round(node.y)}px) scale(${targetScale})`;
           }
       }
   }
@@ -465,10 +636,18 @@ export class BoardsGraphView {
           // Interactions!
           el.addEventListener('mousedown', (e) => {
               e.stopPropagation();
+              this.selectedGraphNodeId = node.id;
+              
+              // Decouple native selection
               this.app.selection.clear();
-              this.app.selection.select(node.id, 'graph-node');
+              
               this.draggingNode = node;
               this.dirtyRender();
+              
+              if (this.app.propertiesPanel) {
+                  this.app.propertiesPanel.switchTab('inspect', true);
+                  this.app.propertiesPanel.fullRender();
+              }
           });
           
           el.addEventListener('dblclick', (e) => {
@@ -476,16 +655,14 @@ export class BoardsGraphView {
               this.app.loadNativeBoard(node.id);
           });
           
-          // Hover highlighting
           el.addEventListener('mouseenter', () => {
-              // Soft visual feedback
-              el.style.background = 'var(--bg-hover, #efefef)';
+              this.hoveredGraphNodeId = node.id;
+              this.dirtyRender();
           });
           el.addEventListener('mouseleave', () => {
-              if (this.app.selection.selectedIds.has(node.id)) {
-                  el.style.background = 'white';
-              } else {
-                  el.style.background = 'var(--bg-layer-1, #f9f9f9)';
+              if (this.hoveredGraphNodeId === node.id) {
+                  this.hoveredGraphNodeId = null;
+                  this.dirtyRender();
               }
           });
 

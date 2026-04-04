@@ -16,7 +16,9 @@ export class PropertiesPanel {
       if (this.app.selection.selectedIds.size === 1) {
         this.switchTab('inspect', true);
       } else if (this.app.selection.selectedIds.size === 0) {
-        this.switchTab('board', true);
+        if (!this.app.isGraphActive || !this.app.boardsGraph?.selectedGraphNodeId) {
+          this.switchTab('board', true);
+        }
       }
       this.fullRender();
     });
@@ -50,16 +52,22 @@ export class PropertiesPanel {
       this.renderBoardMode();
       this.currentRenderedId = 'BOARD:' + this.app.state.boardId;
     } else {
-      const ids = Array.from(this.app.selection.selectedIds);
-      if (ids.length === 1) {
-        this.renderInspectMode(ids[0], this.app.selection.type);
-        this.currentRenderedId = ids[0];
-      } else if (ids.length > 1) {
-        this.bodyEl.innerHTML = '<div class="orbit-properties-empty">Multiple items selected.</div>';
-        this.currentRenderedId = 'MULTI';
+      if (this.app.isGraphActive && this.app.boardsGraph?.selectedGraphNodeId) {
+          const sid = this.app.boardsGraph.selectedGraphNodeId;
+          this.renderGraphNodeInspect(sid);
+          this.currentRenderedId = sid;
       } else {
-        this.bodyEl.innerHTML = '<div class="orbit-properties-empty">No selection.</div>';
-        this.currentRenderedId = 'NONE';
+          const ids = Array.from(this.app.selection.selectedIds);
+          if (ids.length === 1) {
+            this.renderInspectMode(ids[0], this.app.selection.type);
+            this.currentRenderedId = ids[0];
+          } else if (ids.length > 1) {
+            this.bodyEl.innerHTML = '<div class="orbit-properties-empty">Multiple items selected.</div>';
+            this.currentRenderedId = 'MULTI';
+          } else {
+            this.bodyEl.innerHTML = '<div class="orbit-properties-empty">No selection.</div>';
+            this.currentRenderedId = 'NONE';
+          }
       }
     }
     this.currentRenderedTab = this.activeTab;
@@ -912,7 +920,27 @@ export class PropertiesPanel {
     container.appendChild(this.createRow('Title', node.title));
     container.appendChild(this.createRow('Topic', node.topic));
     container.appendChild(this.createRow('Created', new Date(node.createdAt).toLocaleString()));
-    container.appendChild(this.createRow('Relations', `${node.totalWeight} global links`));
+    
+    // Detailed local relations
+    const edges = this.app.boardsGraph?.visibleEdges || [];
+    let visibleIn = 0;
+    let visibleOut = 0;
+    let visibleLinks = 0;
+
+    for (const e of edges) {
+        if (e.target.id === id) {
+             visibleIn += e.weight;
+             visibleLinks++;
+        }
+        if (e.source.id === id) {
+             visibleOut += e.weight;
+             visibleLinks++;
+        }
+    }
+    
+    container.appendChild(this.createRow('Local Links', `${visibleLinks} visible connections`));
+    container.appendChild(this.createRow('Local Activity', `${visibleIn} In / ${visibleOut} Out weight`));
+    container.appendChild(this.createRow('Global Flow', `${node.totalWeight} global weight`));
 
     // Actions
     const actionRow = document.createElement('div');
