@@ -181,16 +181,15 @@ export class SearchEngine {
     if (!text) return '';
     const qLower = query.toLowerCase();
     const idx = text.toLowerCase().indexOf(qLower);
-    if (idx === -1) return text.substring(0, 50) + '...';
+    if (idx === -1) return text.substring(0, 70) + '...';
 
-    const start = Math.max(0, idx - 20);
-    const end = Math.min(text.length, idx + query.length + 20);
+    const start = Math.max(0, idx - 30);
+    const end = Math.min(text.length, idx + query.length + 30);
     
     let snippet = text.substring(start, end);
     if (start > 0) snippet = '...' + snippet;
     if (end < text.length) snippet += '...';
     
-    // We can just return plain text and let the UI formatter highlight it securely
     return snippet;
   }
 }

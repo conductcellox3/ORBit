@@ -9,6 +9,8 @@ export class SearchUI {
     this.query = '';
     this.debounceTimer = null;
     this.results = [];
+    this.activeIndex = -1;
+    this.resultEls = [];
     
     this.overlay = this.createOverlay();
     document.body.appendChild(this.overlay);
@@ -50,11 +52,16 @@ export class SearchUI {
     header.appendChild(switchWrapper);
     header.appendChild(this.input);
 
+    // Filters Placeholder
+    this.filtersContainer = document.createElement('div');
+    this.filtersContainer.className = 'orbit-search-filters';
+
     // Results area
     this.resultsContainer = document.createElement('div');
     this.resultsContainer.className = 'orbit-search-results';
 
     container.appendChild(header);
+    container.appendChild(this.filtersContainer);
     container.appendChild(this.resultsContainer);
     overlay.appendChild(container);
 
@@ -83,10 +90,29 @@ export class SearchUI {
       if (e.key === 'Escape' && this.isOpen) {
         this.close();
       }
-      // Trigger on Ctrl+F / Cmd+F handled at topbar.js (Wait, actually let's handle global shortcut here)
       if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault();
         this.toggle();
+      }
+    });
+
+    this.input.addEventListener('keydown', (e) => {
+      if (e.isComposing) return;
+
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        this.setScope(this.scope === 'this_board' ? 'all_boards' : 'this_board');
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        this.setActiveIndex(this.activeIndex + 1, true);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        this.setActiveIndex(this.activeIndex - 1, true);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (this.activeIndex >= 0 && this.activeIndex < this.results.length) {
+          this.handleResultClick(this.results[this.activeIndex]);
+        }
       }
     });
 
@@ -137,6 +163,8 @@ export class SearchUI {
 
   renderResults() {
     this.resultsContainer.innerHTML = '';
+    this.resultEls = [];
+    this.activeIndex = -1;
     
     if (this.results.length === 0) {
       if (this.query.trim()) {
@@ -147,32 +175,39 @@ export class SearchUI {
       return;
     }
 
-    this.results.forEach(res => {
+    this.results.forEach((res, index) => {
       const el = document.createElement('div');
       el.className = 'orbit-search-item';
       
       const metaRow = document.createElement('div');
       metaRow.className = 'orbit-search-meta';
       
+      const metaLeft = document.createElement('div');
+      metaLeft.className = 'orbit-search-meta-left';
       const typeBadge = document.createElement('span');
       typeBadge.className = 'orbit-search-badge type';
       typeBadge.textContent = res.type.toUpperCase();
+      metaLeft.appendChild(typeBadge);
 
-      const srcBadge = document.createElement('span');
-      srcBadge.className = 'orbit-search-badge source';
-      srcBadge.textContent = res.sourceType === 'legacy' ? 'Legacy' : 'Native';
+      const metaRight = document.createElement('div');
+      metaRight.className = 'orbit-search-meta-right';
       
-      const boardLabel = document.createElement('span');
-      boardLabel.className = 'orbit-search-board-name';
-      boardLabel.textContent = res.boardTitle || 'Untitled';
-
-      metaRow.appendChild(typeBadge);
       if (this.scope === 'all_boards') {
-        metaRow.appendChild(boardLabel);
+        const boardLabel = document.createElement('span');
+        boardLabel.className = 'orbit-search-board-name';
+        boardLabel.textContent = `in ${res.boardTitle || 'Untitled'}`;
+        metaRight.appendChild(boardLabel);
       }
-      if (res.sourceType === 'legacy') {
-         metaRow.appendChild(srcBadge);
+      
+      if (res.sourceType === 'legacy' && this.scope === 'all_boards') {
+        const srcBadge = document.createElement('span');
+        srcBadge.className = 'orbit-search-badge source';
+        srcBadge.textContent = 'Legacy (Read-only)';
+        metaRight.appendChild(srcBadge);
       }
+
+      metaRow.appendChild(metaLeft);
+      metaRow.appendChild(metaRight);
       
       const snippetEl = document.createElement('div');
       snippetEl.className = 'orbit-search-snippet';
@@ -201,9 +236,36 @@ export class SearchUI {
       el.addEventListener('click', async () => {
         await this.handleResultClick(res);
       });
+      
+      el.addEventListener('mouseenter', () => {
+        this.setActiveIndex(index, false);
+      });
 
       this.resultsContainer.appendChild(el);
+      this.resultEls.push(el);
     });
+    
+    // Auto active first result
+    this.setActiveIndex(0, false);
+  }
+
+  setActiveIndex(idx, scroll = false) {
+    if (this.results.length === 0) return;
+    if (idx < 0) idx = 0;
+    if (idx >= this.results.length) idx = this.results.length - 1;
+    
+    if (this.activeIndex >= 0 && this.activeIndex < this.resultEls.length) {
+      this.resultEls[this.activeIndex].classList.remove('is-active');
+    }
+    
+    this.activeIndex = idx;
+    const activeEl = this.resultEls[this.activeIndex];
+    if (activeEl) {
+      activeEl.classList.add('is-active');
+      if (scroll) {
+        activeEl.scrollIntoView({ block: 'nearest' });
+      }
+    }
   }
 
   async handleResultClick(res) {
