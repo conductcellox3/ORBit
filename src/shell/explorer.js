@@ -51,9 +51,154 @@ export class Explorer {
     newBoardBtn.addEventListener('mouseleave', () => newBoardBtn.style.color = 'var(--color-text-muted)');
     
     newBoardBtn.addEventListener('click', async () => {
-      const result = await workspaceManager.createBoard("New Native Board");
-      await this.app.loadNativeBoard(result.id);
-      await this.mount(); // Re-render tree
+      if (document.getElementById('inline-board-create')) return;
+
+      const creationContainer = document.createElement('div');
+      creationContainer.id = 'inline-board-create';
+      creationContainer.style.padding = '8px 16px';
+      creationContainer.style.display = 'flex';
+      creationContainer.style.flexDirection = 'column';
+      creationContainer.style.gap = '4px';
+      creationContainer.style.borderBottom = '1px solid var(--border-color)';
+      creationContainer.style.background = 'rgba(0,0,0,0.02)';
+
+      creationContainer.style.position = 'relative';
+
+      const styleInput = (inp) => {
+          inp.style.border = '1px solid var(--border-color)';
+          inp.style.background = 'var(--bg-panel, #FFFFFF)';
+          inp.style.color = 'var(--color-text-main, #202124)';
+          inp.style.outline = 'none';
+          inp.style.borderRadius = '3px';
+          inp.style.padding = '4px 6px';
+          inp.style.fontSize = '12px';
+          inp.style.fontFamily = 'inherit';
+          inp.style.width = '100%';
+          inp.style.boxSizing = 'border-box';
+      };
+
+      const titleInput = document.createElement('input');
+      titleInput.type = 'text';
+      titleInput.placeholder = 'Board Title...';
+      styleInput(titleInput);
+      
+      const topicInputContainer = document.createElement('div');
+      topicInputContainer.style.position = 'relative';
+      topicInputContainer.style.width = '100%';
+
+      const topicInput = document.createElement('input');
+      topicInput.type = 'text';
+      topicInput.placeholder = 'Topic (optional)';
+      styleInput(topicInput);
+      topicInputContainer.appendChild(topicInput);
+      
+      const suggestionBox = document.createElement('div');
+      suggestionBox.style.display = 'none';
+      suggestionBox.style.position = 'absolute';
+      suggestionBox.style.top = '100%';
+      suggestionBox.style.left = '0';
+      suggestionBox.style.width = '100%';
+      suggestionBox.style.backgroundColor = 'var(--bg-panel, #FFFFFF)';
+      suggestionBox.style.border = '1px solid var(--border-color)';
+      suggestionBox.style.borderRadius = '3px';
+      suggestionBox.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+      suggestionBox.style.zIndex = '1000';
+      suggestionBox.style.maxHeight = '150px';
+      suggestionBox.style.overflowY = 'auto';
+      suggestionBox.style.marginTop = '2px';
+      topicInputContainer.appendChild(suggestionBox);
+
+      const topics = workspaceManager.getKnownBoardTopics();
+
+      const renderSuggestions = (query) => {
+        suggestionBox.innerHTML = '';
+        const q = query.toLowerCase().trim();
+        const matches = topics.filter(t => t.toLowerCase().includes(q));
+        if (matches.length === 0) {
+          suggestionBox.style.display = 'none';
+          return;
+        }
+        
+        matches.forEach(t => {
+          const opt = document.createElement('div');
+          opt.textContent = t;
+          opt.style.padding = '4px 6px';
+          opt.style.fontSize = '11px'; // Minial layout size
+          opt.style.cursor = 'pointer';
+          opt.style.color = 'var(--color-text-main)';
+          opt.addEventListener('mouseenter', () => {
+            opt.style.backgroundColor = 'var(--bg-hover, rgba(0,0,0,0.05))';
+          });
+          opt.addEventListener('mouseleave', () => {
+             opt.style.backgroundColor = 'transparent';
+          });
+          opt.addEventListener('mousedown', (e) => {
+            e.preventDefault(); 
+            topicInput.value = t;
+            suggestionBox.style.display = 'none';
+            topicInput.focus();
+          });
+          suggestionBox.appendChild(opt);
+        });
+        suggestionBox.style.display = 'block';
+      };
+
+      topicInput.addEventListener('input', () => renderSuggestions(topicInput.value));
+      topicInput.addEventListener('focus', () => renderSuggestions(topicInput.value));
+      topicInput.addEventListener('blur', () => {
+        setTimeout(() => { suggestionBox.style.display = 'none'; }, 100);
+      });
+
+      creationContainer.appendChild(titleInput);
+      creationContainer.appendChild(topicInputContainer);
+
+      treeContainer.insertBefore(creationContainer, nativeHeaderContainer.nextSibling);
+      
+      titleInput.focus();
+
+      const cleanup = () => {
+        if (creationContainer.parentNode) {
+          creationContainer.parentNode.removeChild(creationContainer);
+        }
+      };
+
+      const submit = async () => {
+        const title = titleInput.value.trim();
+        if (!title) return; // Block empty submission
+        const topic = topicInput.value.trim();
+        
+        cleanup();
+        
+        const result = await workspaceManager.createBoard(title, topic);
+        await this.app.loadNativeBoard(result.id);
+        await this.mount(); // Re-render tree
+      };
+
+      const handleKey = (e) => {
+        if (e.key === 'Escape') {
+          cleanup();
+          e.preventDefault();
+        } else if (e.key === 'Enter') {
+          if (e.isComposing) return; // Safe IME check
+          // If suggestion box is open, optionally let enter select it if we had keyboard navigation
+          // but for minimal implementation, enter just submits.
+          submit();
+          e.preventDefault();
+        }
+      };
+
+      titleInput.addEventListener('keydown', handleKey);
+      topicInput.addEventListener('keydown', handleKey);
+      
+      const handleBlur = (e) => {
+        setTimeout(() => {
+          if (document.activeElement !== titleInput && document.activeElement !== topicInput) {
+            cleanup();
+          }
+        }, 150);
+      };
+      titleInput.addEventListener('blur', handleBlur);
+      topicInput.addEventListener('blur', handleBlur);
     });
     nativeHeaderContainer.appendChild(newBoardBtn);
     treeContainer.appendChild(nativeHeaderContainer);
@@ -129,31 +274,44 @@ export class Explorer {
       const itemEl = document.createElement('div');
       itemEl.className = 'mock-tree-item';
       itemEl.dataset.id = board.id;
+      itemEl.style.alignItems = 'flex-start';
+      itemEl.style.paddingTop = '6px';
+      itemEl.style.paddingBottom = '6px';
+      itemEl.style.gap = '6px';
       
       const iconEl = document.createElement('span');
       iconEl.className = 'mock-icon';
       iconEl.textContent = iconText;
+      iconEl.style.marginTop = '2px';
+      
+      const contentContainer = document.createElement('div');
+      contentContainer.style.display = 'flex';
+      contentContainer.style.flexDirection = 'column';
+      contentContainer.style.flex = '1';
+      contentContainer.style.overflow = 'hidden';
       
       const titleEl = document.createElement('span');
       titleEl.textContent = board.title || 'Untitled Board';
-      titleEl.style.flex = "1";
-      titleEl.style.overflow = "hidden";
       titleEl.style.whiteSpace = "nowrap";
+      titleEl.style.overflow = "hidden";
       titleEl.style.textOverflow = "ellipsis";
       
-      itemEl.appendChild(iconEl);
-      itemEl.appendChild(titleEl);
+      contentContainer.appendChild(titleEl);
       
-      if (board.topic) {
+      if (board.topic && board.topic.trim() !== '') {
         const topicEl = document.createElement('span');
         topicEl.textContent = board.topic;
-        topicEl.style.fontSize = '9px';
-        topicEl.style.opacity = '0.5';
-        topicEl.style.padding = '2px 4px';
-        topicEl.style.border = '1px solid var(--border-color)';
-        topicEl.style.borderRadius = '3px';
-        itemEl.appendChild(topicEl);
+        topicEl.style.fontSize = '11px';
+        topicEl.style.color = 'var(--color-text-muted)';
+        topicEl.style.whiteSpace = 'nowrap';
+        topicEl.style.overflow = 'hidden';
+        topicEl.style.textOverflow = 'ellipsis';
+        topicEl.style.marginTop = '2px';
+        contentContainer.appendChild(topicEl);
       }
+
+      itemEl.appendChild(iconEl);
+      itemEl.appendChild(contentContainer);
 
       itemEl.addEventListener('contextmenu', (e) => {
         e.preventDefault();

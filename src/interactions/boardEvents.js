@@ -102,12 +102,19 @@ export class BoardEvents {
         }
         
         let hasImage = false;
+        let isSingleTextNote = false;
+        
         if (targetType === 'note') {
           for (const id of this.app.selection.selectedIds) {
             const note = this.app.state.notes.get(id);
             if (note && (note.type === 'image' || note.isImage)) {
               hasImage = true;
-              break;
+            }
+          }
+          if (!hasImage && this.app.selection.selectedIds.size === 1) {
+            const n = this.app.state.notes.get(targetId);
+            if (n && n.type !== 'calc') {
+               isSingleTextNote = true;
             }
           }
         }
@@ -118,6 +125,30 @@ export class BoardEvents {
             onClick: () => {
               this.spawnCaptionInput(targetId);
             }
+          });
+        }
+        
+        if (isSingleTextNote && this.app.state.sourceType === 'native') {
+          items.push({ type: 'separator' });
+          const noteNode = this.app.state.notes.get(targetId);
+          const currentMarkers = noteNode.markers || [];
+          ['action', 'question', 'decision', 'risk', 'reference'].forEach(m => {
+            const isActive = currentMarkers.includes(m);
+            items.push({
+              label: `${isActive ? '[✓]' : '[  ]'} Toggle ${m.charAt(0).toUpperCase() + m.slice(1)}`,
+              keepOpen: true,
+              onClick: (e, itemEl) => {
+                this.app.state.toggleNoteMarker(targetId, m);
+                this.app.commitHistory();
+                
+                // Re-poll explicitly from state to cleanly redraw
+                const updatedNote = this.app.state.notes.get(targetId);
+                const isNowActive = updatedNote && updatedNote.markers && updatedNote.markers.includes(m);
+                if (itemEl) {
+                  itemEl.textContent = `${isNowActive ? '[✓]' : '[  ]'} Toggle ${m.charAt(0).toUpperCase() + m.slice(1)}`;
+                }
+              }
+            });
           });
         }
         

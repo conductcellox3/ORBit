@@ -153,6 +153,35 @@ export class State {
     this.notify();
   }
 
+  toggleNoteMarker(id, marker) {
+    if (this.sourceType === 'legacy') return;
+    const note = this.notes.get(id);
+    // Explicitly restrict to basic text notes
+    if (!note || note.type === 'image' || note.isImage || note.type === 'calc') return;
+    
+    if (!Array.isArray(note.markers)) {
+      note.markers = [];
+    }
+
+    const m = marker.trim().toLowerCase();
+    const idx = note.markers.indexOf(m);
+    
+    if (idx !== -1) {
+      note.markers.splice(idx, 1);
+    } else {
+      note.markers.push(m);
+    }
+    
+    // Normalize string array: distinct and sorted alphabetically
+    note.markers = [...new Set(note.markers)].sort();
+    
+    if (note.markers.length === 0) {
+      delete note.markers; // Keep clean JSON when empty
+    }
+
+    this.notify();
+  }
+
   setFrameColor(id, preset) {
     if (this.sourceType === 'legacy') return;
     const frame = this.frames.get(id);

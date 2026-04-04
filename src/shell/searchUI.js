@@ -26,9 +26,15 @@ export class SearchUI {
     const container = document.createElement('div');
     container.className = 'orbit-search-container';
 
-    // Header (Switch + Input)
+    // Header
     const header = document.createElement('div');
     header.className = 'orbit-search-header';
+
+    const headerRow1 = document.createElement('div');
+    headerRow1.style.display = 'flex';
+    headerRow1.style.alignItems = 'center';
+    headerRow1.style.justifyContent = 'space-between';
+    headerRow1.style.marginBottom = '8px';
 
     const switchWrapper = document.createElement('div');
     switchWrapper.className = 'orbit-search-switch';
@@ -43,18 +49,60 @@ export class SearchUI {
 
     switchWrapper.appendChild(this.btnThisBoard);
     switchWrapper.appendChild(this.btnAllBoards);
+    headerRow1.appendChild(switchWrapper);
+
+    const filterWrapper = document.createElement('div');
+    filterWrapper.style.display = 'flex';
+    filterWrapper.style.gap = '8px';
     
+    this.typeSelect = document.createElement('select');
+    ['All Types', 'Text Note', 'Image', 'Calc', 'Frame'].forEach(t => {
+       const opt = document.createElement('option');
+       opt.value = t === 'All Types' ? 'all' : t.split(' ')[0].toLowerCase();
+       opt.textContent = t;
+       this.typeSelect.appendChild(opt);
+    });
+
+    this.markerSelect = document.createElement('select');
+    ['All Markers', 'Action', 'Question', 'Decision', 'Risk', 'Reference'].forEach(m => {
+       const opt = document.createElement('option');
+       opt.value = m === 'All Markers' ? 'all' : m.toLowerCase();
+       opt.textContent = m;
+       this.markerSelect.appendChild(opt);
+    });
+
+    const applySelectStyles = (sel) => {
+       sel.style.padding = '2px 6px';
+       sel.style.borderRadius = '4px';
+       sel.style.border = '1px solid var(--border-color)';
+       sel.style.background = 'transparent';
+       sel.style.color = 'var(--color-text-main)';
+       sel.style.fontSize = '11px';
+       sel.style.cursor = 'pointer';
+       sel.style.outline = 'none';
+       
+       sel.addEventListener('change', () => this.performSearch());
+    };
+    applySelectStyles(this.typeSelect);
+    applySelectStyles(this.markerSelect);
+
+    filterWrapper.appendChild(this.typeSelect);
+    filterWrapper.appendChild(this.markerSelect);
+    headerRow1.appendChild(filterWrapper);
+    
+    header.appendChild(headerRow1);
+
     this.input = document.createElement('input');
     this.input.type = 'text';
     this.input.className = 'orbit-search-input';
     this.input.placeholder = 'Search within this board...';
 
-    header.appendChild(switchWrapper);
     header.appendChild(this.input);
 
     // Filters Placeholder
     this.filtersContainer = document.createElement('div');
     this.filtersContainer.className = 'orbit-search-filters';
+    this.filtersContainer.style.display = 'none';
 
     // Results area
     this.resultsContainer = document.createElement('div');
@@ -141,7 +189,14 @@ export class SearchUI {
   async performSearch() {
     this.resultsContainer.innerHTML = '<div class="orbit-search-empty">Searching...</div>';
     
-    if (!this.query.trim()) {
+    const filters = {
+      type: this.typeSelect ? this.typeSelect.value : 'all',
+      marker: this.markerSelect ? this.markerSelect.value : 'all'
+    };
+    
+    const hasFilters = filters.type !== 'all' || filters.marker !== 'all';
+
+    if (!this.query.trim() && !hasFilters) {
       this.results = [];
       this.renderResults();
       return;
@@ -149,9 +204,9 @@ export class SearchUI {
 
     try {
       if (this.scope === 'this_board') {
-        this.results = await this.app.searchEngine.searchThisBoard(this.query);
+        this.results = await this.app.searchEngine.searchThisBoard(this.query, filters);
       } else {
-        this.results = await this.app.searchEngine.searchAllBoards(this.query);
+        this.results = await this.app.searchEngine.searchAllBoards(this.query, filters);
       }
     } catch (err) {
       console.error("Search failed", err);
@@ -167,10 +222,12 @@ export class SearchUI {
     this.activeIndex = -1;
     
     if (this.results.length === 0) {
-      if (this.query.trim()) {
+      const hasFilters = (this.typeSelect && this.typeSelect.value !== 'all') || 
+                         (this.markerSelect && this.markerSelect.value !== 'all');
+      if (this.query.trim() || hasFilters) {
          this.resultsContainer.innerHTML = '<div class="orbit-search-empty">No results found.</div>';
       } else {
-         this.resultsContainer.innerHTML = '<div class="orbit-search-empty">Type to search...</div>';
+         this.resultsContainer.innerHTML = '<div class="orbit-search-empty">Type to search or select a filter...</div>';
       }
       return;
     }
@@ -212,6 +269,20 @@ export class SearchUI {
       const snippetEl = document.createElement('div');
       snippetEl.className = 'orbit-search-snippet';
       
+      if (res.matchField === 'topic') {
+        const topicHint = document.createElement('span');
+        topicHint.style.color = 'var(--color-text-muted)';
+        topicHint.style.marginRight = '4px';
+        topicHint.textContent = 'Topic:';
+        snippetEl.appendChild(topicHint);
+      } else if (res.matchField === 'marker' && res.matchedMarker) {
+        const markerHint = document.createElement('span');
+        markerHint.style.color = 'var(--color-text-muted)';
+        markerHint.style.marginRight = '4px';
+        markerHint.style.fontStyle = 'italic';
+        markerHint.textContent = `marker: ${res.matchedMarker} -`;
+        snippetEl.appendChild(markerHint);
+      }
       // Simple highlight
       const qLower = this.query.toLowerCase().trim();
       if (res.snippet && qLower) {
@@ -227,7 +298,7 @@ export class SearchUI {
           }
         });
       } else {
-        snippetEl.textContent = res.snippet || '';
+        snippetEl.appendChild(document.createTextNode(res.snippet || ''));
       }
 
       el.appendChild(metaRow);

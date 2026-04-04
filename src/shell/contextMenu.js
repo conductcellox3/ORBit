@@ -47,8 +47,8 @@ export class ContextMenu {
         });
         itemEl.addEventListener('click', (e) => {
           e.stopPropagation();
-          this.hide();
-          item.onClick();
+          if (!item.keepOpen) this.hide();
+          item.onClick(e, itemEl);
         });
       }
       menuEl.appendChild(itemEl);

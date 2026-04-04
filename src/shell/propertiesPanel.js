@@ -95,6 +95,18 @@ export class PropertiesPanel {
             this.updateValueElement('inspect-size', `${Math.round(note.width || 0)} × ${Math.round(note.height || 0)}`);
           } else {
             this.updateValueElement('inspect-color', note.colorKey || 'default');
+            
+            // Soft-update marker chips
+            const activeMarkers = note.markers || [];
+            const chips = this.bodyEl.querySelectorAll('.orbit-marker-chip');
+            chips.forEach(chip => {
+               const m = chip.dataset.marker;
+               const isActive = activeMarkers.includes(m);
+               chip.style.fontWeight = isActive ? '600' : 'normal';
+               chip.style.background = isActive ? 'var(--color-text-main, #333)' : 'transparent';
+               chip.style.color = isActive ? '#FFFFFF' : 'var(--color-text-main, #333)';
+               chip.style.border = isActive ? '1px solid var(--color-text-main, #333)' : '1px solid var(--border-color)';
+            });
           }
         } else if (type === 'frame' && frame) {
           this.updateValueElement('inspect-title', frame.title || '');
@@ -279,11 +291,62 @@ export class PropertiesPanel {
         });
         container.appendChild(colorRow);
 
-        // Markers (Read only for now)
-        if (note.markers && note.markers.length > 0) {
-           container.appendChild(this.createRow('Markers', note.markers.join(', ')));
-        } else {
-           container.appendChild(this.createRow('Markers', 'None'));
+        if (note.type !== 'calc') {
+          if (isLegacy) {
+            // Markers (Read only for now)
+            if (note.markers && note.markers.length > 0) {
+               container.appendChild(this.createRow('Markers', note.markers.join(', ')));
+            } else {
+               container.appendChild(this.createRow('Markers', 'None'));
+            }
+          } else {
+            const markerSet = ['action', 'question', 'decision', 'risk', 'reference'];
+            const markerContainer = document.createElement('div');
+            markerContainer.className = 'orbit-properties-group no-label';
+            
+            const label = document.createElement('div');
+            label.textContent = 'Markers';
+            label.style.fontSize = '10px';
+            label.style.color = 'var(--color-text-muted)';
+            label.style.marginBottom = '6px';
+            label.style.textTransform = 'uppercase';
+            markerContainer.appendChild(label);
+
+            const chipsContainer = document.createElement('div');
+            chipsContainer.style.display = 'flex';
+            chipsContainer.style.flexWrap = 'wrap';
+            chipsContainer.style.gap = '4px';
+
+            const activeMarkers = note.markers || [];
+
+            markerSet.forEach(m => {
+               const chip = document.createElement('button');
+               chip.className = 'orbit-property-button orbit-marker-chip'; 
+               chip.dataset.marker = m;
+               const isActive = activeMarkers.includes(m);
+               
+               chip.style.padding = '3px 8px';
+               chip.style.borderRadius = '12px';
+               chip.style.textTransform = 'capitalize';
+               chip.style.fontWeight = isActive ? '600' : 'normal';
+               chip.style.background = isActive ? 'var(--color-text-main, #333)' : 'transparent';
+               chip.style.color = isActive ? '#FFFFFF' : 'var(--color-text-main, #333)';
+               chip.style.border = isActive ? '1px solid var(--color-text-main, #333)' : '1px solid var(--border-color)';
+               
+               chip.textContent = m;
+               
+               chip.onclick = () => {
+                  this.app.state.toggleNoteMarker(id, m);
+                  this.app.commitHistory();
+                  this.softUpdate();
+               };
+               
+               chipsContainer.appendChild(chip);
+            });
+            
+            markerContainer.appendChild(chipsContainer);
+            container.appendChild(markerContainer);
+          }
         }
       }
 

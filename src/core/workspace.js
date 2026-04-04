@@ -108,7 +108,7 @@ export class NativeWorkspaceManager {
     await writeTextFile(manifestPath, content, this.basePathObj);
   }
 
-  async createBoard(title = "Untitled Board") {
+  async createBoard(title = "Untitled Board", topic = "") {
     if (!this.manifest) await this.init();
 
     const newId = crypto.randomUUID();
@@ -126,6 +126,10 @@ export class NativeWorkspaceManager {
       createdAt: now,
       updatedAt: now
     };
+    
+    if (topic && topic.trim() !== "") {
+      meta.topic = topic.trim();
+    }
 
     // Minimal safe initial state
     const state = {
@@ -145,8 +149,13 @@ export class NativeWorkspaceManager {
       title: title,
       createdAt: now,
       updatedAt: now,
-      lastOpenedAt: now
+      lastOpenedAt: now,
+      folderId: null
     };
+
+    if (topic && topic.trim() !== "") {
+      boardEntry.topic = topic.trim();
+    }
 
     this.manifest.boards.push(boardEntry);
     this.manifest.lastOpenedBoardId = newId;
@@ -160,6 +169,20 @@ export class NativeWorkspaceManager {
     return { id: newId, meta, state };
   }
   
+  getKnownBoardTopics() {
+    if (!this.manifest || !this.manifest.boards) return [];
+    const topics = new Set();
+    for (const b of this.manifest.boards) {
+      if (b.topic && typeof b.topic === 'string') {
+        const trimmed = b.topic.trim();
+        if (trimmed.length > 0) {
+          topics.add(trimmed);
+        }
+      }
+    }
+    return Array.from(topics).sort();
+  }
+
   getBoardDirName(boardId) {
     if (!this.manifest) return boardId;
     const entry = this.manifest.boards.find(b => b.id === boardId);

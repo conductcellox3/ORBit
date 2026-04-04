@@ -72,6 +72,71 @@ export class NoteRenderer {
         if (contentEl && document.activeElement !== contentEl) {
           contentEl.textContent = note.text;
         }
+
+        // Modest Marker Chips
+        let markerContainer = el.querySelector('.orbit-note-markers');
+        if (note.markers && note.markers.length > 0) {
+          const isSelected = isNoteSelection && this.app.selection.has(id);
+          const availableW = (parseFloat(note.w) || parseFloat(note.width) || 250) - 18;
+          let maxVisible = 2;
+          
+          if (availableW < 70) maxVisible = 0;
+          else if (availableW < 130) maxVisible = 1;
+
+          if (maxVisible === 0 && !isSelected) {
+            if (markerContainer) markerContainer.remove();
+          } else {
+            if (!markerContainer) {
+              markerContainer = document.createElement('div');
+              markerContainer.className = 'orbit-note-markers';
+              markerContainer.style.position = 'absolute';
+              markerContainer.style.bottom = '-8px';
+              markerContainer.style.left = '8px';
+              markerContainer.style.display = 'flex';
+              markerContainer.style.gap = '3px';
+              el.appendChild(markerContainer);
+            }
+            markerContainer.innerHTML = '';
+            
+            const FIXED_ORDER = ['action', 'question', 'decision', 'risk', 'reference'];
+            const sortedMarkers = [];
+            // Match fixed order
+            FIXED_ORDER.forEach(m => {
+              if (note.markers.includes(m)) sortedMarkers.push(m);
+            });
+            // Append unknown/custom/legacy markers
+            note.markers.forEach(m => {
+              if (!FIXED_ORDER.includes(m)) sortedMarkers.push(m);
+            });
+
+            const visibleMarkers = maxVisible === 0 ? [] : sortedMarkers.slice(0, maxVisible);
+            const hiddenCount = sortedMarkers.length - visibleMarkers.length;
+
+            const createChip = (text) => {
+              const mSpan = document.createElement('span');
+              mSpan.textContent = text;
+              mSpan.style.background = 'var(--bg-layer-1, #FFFFFF)';
+              mSpan.style.color = 'var(--color-text-muted, #64748b)';
+              mSpan.style.fontSize = '9px';
+              mSpan.style.padding = '1px 4px';
+              mSpan.style.borderRadius = '4px';
+              mSpan.style.border = '1px solid var(--border-color)';
+              mSpan.style.textTransform = 'capitalize';
+              mSpan.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+              return mSpan;
+            };
+
+            visibleMarkers.forEach(m => {
+              markerContainer.appendChild(createChip(m));
+            });
+
+            if (hiddenCount > 0) {
+              markerContainer.appendChild(createChip(`+${hiddenCount}`));
+            }
+          }
+        } else if (markerContainer) {
+          markerContainer.remove();
+        }
       }
 
       if (note.colorKey) el.dataset.color = note.colorKey;

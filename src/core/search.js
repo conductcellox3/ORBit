@@ -8,45 +8,68 @@ export class SearchEngine {
   }
 
   // --- This Board Search ---
-  async searchThisBoard(query) {
-    if (!query || query.trim() === '') return [];
-    const q = query.toLowerCase().trim();
+  async searchThisBoard(query, filters = { type: 'all', marker: 'all' }) {
+    const q = query ? query.toLowerCase().trim() : '';
     const results = [];
     const state = this.app.state;
 
+    const passesFilters = (itemType, markers) => {
+      if (filters.type !== 'all' && itemType !== filters.type) return false;
+      if (filters.marker !== 'all') {
+        if (!markers || !markers.includes(filters.marker)) return false;
+      }
+      return true;
+    };
+
     // Search Notes
     for (const [id, note] of state.notes.entries()) {
-      const isImage = note.type === 'image' || note.isImage;
-      if (isImage) {
-        if (note.caption && note.caption.toLowerCase().includes(q)) {
-          results.push({
-            type: 'image',
-            id: note.id,
-            boardId: state.boardId,
-            boardTitle: state.title,
-            matchField: 'caption',
-            snippet: this.generateSnippet(note.caption, q),
-            sourceType: state.sourceType
-          });
-        }
-      } else {
-        if (note.text && note.text.toLowerCase().includes(q)) {
-          results.push({
-            type: 'note',
-            id: note.id,
-            boardId: state.boardId,
-            boardTitle: state.title,
-            matchField: 'text',
-            snippet: this.generateSnippet(note.text, q),
-            sourceType: state.sourceType
-          });
-        }
+      let typeStr = note.type === 'calc' ? 'calc' : 'note';
+      if (note.type === 'image' || note.isImage) typeStr = 'image';
+      
+      if (!passesFilters(typeStr, note.markers)) continue;
+
+      const searchableText = typeStr === 'image' ? note.caption : note.text;
+      
+      if (!q) {
+        results.push({
+          type: typeStr,
+          id: note.id,
+          boardId: state.boardId,
+          boardTitle: state.title,
+          matchField: filters.marker !== 'all' ? 'marker' : 'filter',
+          matchedMarker: filters.marker !== 'all' ? filters.marker : null,
+          snippet: this.generateSnippet(searchableText || '', ''),
+          sourceType: state.sourceType
+        });
+      } else if (searchableText && searchableText.toLowerCase().includes(q)) {
+        results.push({
+          type: typeStr,
+          id: note.id,
+          boardId: state.boardId,
+          boardTitle: state.title,
+          matchField: typeStr === 'image' ? 'caption' : 'text',
+          matchedMarker: filters.marker !== 'all' ? filters.marker : null,
+          snippet: this.generateSnippet(searchableText, q),
+          sourceType: state.sourceType
+        });
       }
     }
 
     // Search Frames
     for (const [id, frame] of state.frames.entries()) {
-      if (frame.title && frame.title.toLowerCase().includes(q)) {
+      if (!passesFilters('frame', [])) continue;
+
+      if (!q) {
+        results.push({
+          type: 'frame',
+          id: frame.id,
+          boardId: state.boardId,
+          boardTitle: state.title,
+          matchField: 'filter',
+          snippet: this.generateSnippet(frame.title || '', ''),
+          sourceType: state.sourceType
+        });
+      } else if (frame.title && frame.title.toLowerCase().includes(q)) {
         results.push({
           type: 'frame',
           id: frame.id,
@@ -63,40 +86,49 @@ export class SearchEngine {
   }
 
   // --- All Boards Search ---
-  async searchAllBoards(query) {
-    if (!query || query.trim() === '') return [];
+  async searchAllBoards(query, filters = { type: 'all', marker: 'all' }) {
     if (!workspaceManager.manifest) return [];
 
-    const q = query.toLowerCase().trim();
+    const q = query ? query.toLowerCase().trim() : '';
     const results = [];
 
-    // Ensure we gather promises so they resolve in parallel, but cache heavily.
-    const boardPromises = workspaceManager.manifest.boards.map(async (boardEntry) => {
-      // Direct Board Metadata Search
-      let boardMatched = false;
-      if (boardEntry.title && boardEntry.title.toLowerCase().includes(q)) {
-        results.push({
-          type: 'board',
-          id: null,
-          boardId: boardEntry.id,
-          boardTitle: boardEntry.title,
-          matchField: 'title',
-          snippet: this.generateSnippet(boardEntry.title, q),
-          sourceType: boardEntry.type || 'native'
-        });
-        boardMatched = true;
+    const passesFilters = (itemType, markers) => {
+      if (filters.type !== 'all' && itemType !== filters.type) return false;
+      if (filters.marker !== 'all') {
+        if (!markers || !markers.includes(filters.marker)) return false;
       }
-      if (boardEntry.topic && boardEntry.topic.toLowerCase().includes(q)) {
-        results.push({
-          type: 'board',
-          id: null,
-          boardId: boardEntry.id,
-          boardTitle: boardEntry.title,
-          matchField: 'topic',
-          snippet: this.generateSnippet(boardEntry.topic, q),
-          sourceType: boardEntry.type || 'native'
-        });
-        boardMatched = true;
+      return true;
+    };
+
+    const boardPromises = workspaceManager.manifest.boards.map(async (boardEntry) => {
+      // Direct Board Metadata Search (only if no restrictive note-level filters exist, or if explicitly asked)
+      // For simplicity, if we are filtering by marker or note type, we skip board-level matches.
+      if (filters.type === 'all' && filters.marker === 'all' && q) {
+        let boardMatched = false;
+        if (boardEntry.title && boardEntry.title.toLowerCase().includes(q)) {
+          results.push({
+            type: 'board',
+            id: null,
+            boardId: boardEntry.id,
+            boardTitle: boardEntry.title,
+            matchField: 'title',
+            snippet: this.generateSnippet(boardEntry.title, q),
+            sourceType: boardEntry.type || 'native'
+          });
+          boardMatched = true;
+        }
+        if (boardEntry.topic && boardEntry.topic.toLowerCase().includes(q)) {
+          results.push({
+            type: 'board',
+            id: null,
+            boardId: boardEntry.id,
+            boardTitle: boardEntry.title,
+            matchField: 'topic',
+            snippet: this.generateSnippet(boardEntry.topic, q),
+            sourceType: boardEntry.type || 'native'
+          });
+          boardMatched = true;
+        }
       }
 
       // Check Cache or extract
@@ -105,7 +137,6 @@ export class SearchEngine {
       if (cacheEntry && cacheEntry.timestamp === boardEntry.updatedAt) {
         items = cacheEntry.data;
       } else {
-        // Must extract
         items = await this.extractBoardContent(boardEntry);
         this.allBoardsCache.set(boardEntry.id, {
           timestamp: boardEntry.updatedAt,
@@ -115,13 +146,27 @@ export class SearchEngine {
 
       // Filter items
       for (const item of items) {
-        if (item.text && item.text.toLowerCase().includes(q)) {
+        if (!passesFilters(item.type, item.markers)) continue;
+        
+        if (!q) {
+          results.push({
+            type: item.type,
+            id: item.id,
+            boardId: boardEntry.id,
+            boardTitle: boardEntry.title,
+            matchField: filters.marker !== 'all' ? 'marker' : 'filter',
+            matchedMarker: filters.marker !== 'all' ? filters.marker : null,
+            snippet: this.generateSnippet(item.text || '', ''),
+            sourceType: boardEntry.type || 'native'
+          });
+        } else if (item.text && item.text.toLowerCase().includes(q)) {
           results.push({
             type: item.type,
             id: item.id,
             boardId: boardEntry.id,
             boardTitle: boardEntry.title,
             matchField: item.matchField,
+            matchedMarker: filters.marker !== 'all' ? filters.marker : null,
             snippet: this.generateSnippet(item.text, q),
             sourceType: boardEntry.type || 'native'
           });
@@ -156,16 +201,17 @@ export class SearchEngine {
             if (!note) return;
             const isImg = note.type === 'image' || note.isImage;
             if (isImg && note.caption) {
-              items.push({ id: note.id, type: 'image', text: note.caption, matchField: 'caption' });
+              items.push({ id: note.id, type: 'image', text: note.caption, matchField: 'caption', markers: note.markers || [] });
             } else if (!isImg && note.text) {
-              items.push({ id: note.id, type: 'note', text: note.text, matchField: 'text' });
+              const typeStr = note.type === 'calc' ? 'calc' : 'note';
+              items.push({ id: note.id, type: typeStr, text: note.text, matchField: 'text', markers: note.markers || [] });
             }
           });
         }
         if (state.frames && Array.isArray(state.frames)) {
           state.frames.forEach(([id, frame]) => {
             if (frame && frame.title) {
-              items.push({ id: frame.id, type: 'frame', text: frame.title, matchField: 'title' });
+              items.push({ id: frame.id, type: 'frame', text: frame.title, matchField: 'title', markers: [] });
             }
           });
         }
@@ -179,6 +225,7 @@ export class SearchEngine {
 
   generateSnippet(text, query) {
     if (!text) return '';
+    if (!query) return text.substring(0, 70); // Just return first chunk for filter-only
     const qLower = query.toLowerCase();
     const idx = text.toLowerCase().indexOf(qLower);
     if (idx === -1) return text.substring(0, 70) + '...';
