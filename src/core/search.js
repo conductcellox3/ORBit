@@ -101,6 +101,9 @@ export class SearchEngine {
     };
 
     const boardPromises = workspaceManager.manifest.boards.map(async (boardEntry) => {
+      const isNative = boardEntry.type !== 'legacy';
+      const folderNameStr = isNative ? workspaceManager.resolveFolderName(boardEntry.folderId) : null;
+
       // Direct Board Metadata Search (only if no restrictive note-level filters exist, or if explicitly asked)
       // For simplicity, if we are filtering by marker or note type, we skip board-level matches.
       if (filters.type === 'all' && filters.marker === 'all' && q) {
@@ -113,6 +116,7 @@ export class SearchEngine {
             boardTitle: boardEntry.title,
             matchField: 'title',
             snippet: this.generateSnippet(boardEntry.title, q),
+            folderName: folderNameStr,
             sourceType: boardEntry.type || 'native'
           });
           boardMatched = true;
@@ -125,6 +129,20 @@ export class SearchEngine {
             boardTitle: boardEntry.title,
             matchField: 'topic',
             snippet: this.generateSnippet(boardEntry.topic, q),
+            folderName: folderNameStr,
+            sourceType: boardEntry.type || 'native'
+          });
+          boardMatched = true;
+        }
+        if (isNative && folderNameStr && folderNameStr.toLowerCase().includes(q) && !boardMatched) {
+          results.push({
+            type: 'board',
+            id: null,
+            boardId: boardEntry.id,
+            boardTitle: boardEntry.title,
+            matchField: 'folder',
+            snippet: this.generateSnippet(boardEntry.title, ''),
+            folderName: folderNameStr,
             sourceType: boardEntry.type || 'native'
           });
           boardMatched = true;
@@ -157,6 +175,7 @@ export class SearchEngine {
             matchField: filters.marker !== 'all' ? 'marker' : 'filter',
             matchedMarker: filters.marker !== 'all' ? filters.marker : null,
             snippet: this.generateSnippet(item.text || '', ''),
+            folderName: folderNameStr,
             sourceType: boardEntry.type || 'native'
           });
         } else if (item.text && item.text.toLowerCase().includes(q)) {
@@ -168,6 +187,7 @@ export class SearchEngine {
             matchField: item.matchField,
             matchedMarker: filters.marker !== 'all' ? filters.marker : null,
             snippet: this.generateSnippet(item.text, q),
+            folderName: folderNameStr,
             sourceType: boardEntry.type || 'native'
           });
         }

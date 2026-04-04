@@ -261,6 +261,13 @@ export class SearchUI {
         srcBadge.className = 'orbit-search-badge source';
         srcBadge.textContent = 'Legacy (Read-only)';
         metaRight.appendChild(srcBadge);
+      } else if (res.sourceType !== 'legacy' && this.scope === 'all_boards' && res.folderName) {
+        const folderBadge = document.createElement('span');
+        folderBadge.className = 'orbit-search-badge source';
+        folderBadge.style.opacity = '0.6';
+        folderBadge.style.fontStyle = 'italic';
+        folderBadge.textContent = res.folderName === 'Inbox' ? 'Folder: Inbox' : `Folder: ${res.folderName}`;
+        metaRight.appendChild(folderBadge);
       }
 
       metaRow.appendChild(metaLeft);

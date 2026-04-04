@@ -128,6 +128,13 @@ export class NativeWorkspaceManager {
     return JSON.parse(JSON.stringify(this.manifest.folders));
   }
 
+  resolveFolderName(folderId) {
+    if (folderId === undefined || folderId === null) return 'Inbox';
+    if (!this.manifest || !this.manifest.folders) return 'Inbox';
+    const folder = this.manifest.folders.find(f => f.id === folderId);
+    return folder ? folder.name : 'Inbox';
+  }
+
   async createFolder(name) {
     if (!this.manifest) await this.init();
     if (!this.manifest.folders) this.manifest.folders = [];

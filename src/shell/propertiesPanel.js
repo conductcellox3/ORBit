@@ -293,7 +293,7 @@ export class PropertiesPanel {
     if (!isLegacy) {
       const folderBtn = document.createElement('button');
       folderBtn.className = 'orbit-property-button';
-      folderBtn.textContent = '📁 Open Folder';
+      folderBtn.textContent = '📁 Open Board Folder';
       folderBtn.onclick = async () => {
         const boardPath = await workspaceManager.resolveBoardPath(this.app.state.boardId);
         if (boardPath) {

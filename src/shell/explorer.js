@@ -381,9 +381,34 @@ export class Explorer {
           this.container.querySelectorAll('.mock-tree-item').forEach(el => {
             el.classList.toggle('is-active', el.dataset.id === id);
           });
+          this.revealBoard(id);
         };
         this._boundOnBoardChanged = true;
     }
+  }
+
+  revealBoard(id) {
+      if (!workspaceManager.manifest) return;
+      const boardInfo = workspaceManager.manifest.boards.find(b => b.id === id);
+      if (!boardInfo || boardInfo.type === 'legacy') return;
+      
+      const folderKey = boardInfo.folderId ? `folder:${boardInfo.folderId}` : '__inbox__';
+      
+      try {
+          const state = JSON.parse(localStorage.getItem('orbit_folder_collapse_state')) || {};
+          if (state[folderKey] === true) {
+              state[folderKey] = false; // Force expand
+              localStorage.setItem('orbit_folder_collapse_state', JSON.stringify(state));
+              this.mount().then(() => this.scrollToBoard(id));
+          }
+      } catch(e) {}
+  }
+
+  scrollToBoard(id) {
+      setTimeout(() => {
+          const el = this.container.querySelector(`.mock-tree-item[data-id="${id}"]`);
+          if (el) el.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+      }, 50);
   }
 
   createTreeItem(board, iconText, isLegacy = false) {
