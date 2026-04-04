@@ -84,6 +84,23 @@ export class NativeWorkspaceManager {
       try {
         const content = await readTextFile(manifestPath, this.basePathObj);
         this.manifest = JSON.parse(content);
+        
+        // Hydration upgrades and safety
+        if (!this.manifest.folders) this.manifest.folders = [];
+        
+        // Ensure missing or invalid folderIds are resolved to null (Inbox)
+        const validFolderIds = new Set(this.manifest.folders.map(f => f.id));
+        if (this.manifest.boards) {
+          for (const board of this.manifest.boards) {
+            if (board.folderId !== null && board.folderId !== undefined) {
+              if (!validFolderIds.has(board.folderId)) {
+                board.folderId = null;
+              }
+            } else {
+              board.folderId = null;
+            }
+          }
+        }
       } catch (e) {
         console.error("Failed to parse native boards.json, creating a fresh one.", e);
         this.manifest = this.createEmptyManifest();
@@ -100,8 +117,37 @@ export class NativeWorkspaceManager {
       version: 2,
       lastOpenedBoardId: null,
       recentBoardIds: [],
+      folders: [],
       boards: []
     };
+  }
+
+  getFolders() {
+    if (!this.manifest || !this.manifest.folders) return [];
+    // Deep copy for read-only via shell
+    return JSON.parse(JSON.stringify(this.manifest.folders));
+  }
+
+  async createFolder(name) {
+    if (!this.manifest) await this.init();
+    if (!this.manifest.folders) this.manifest.folders = [];
+    
+    const cleanName = (name || '').trim();
+    if (!cleanName) return null;
+    
+    const normalized = cleanName.toLowerCase();
+    const isDuplicate = this.manifest.folders.some(f => f.name.toLowerCase() === normalized);
+    if (isDuplicate) return null; // Reject silently, UI handles validation state
+    
+    const newId = `fld_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    this.manifest.folders.push({
+      id: newId,
+      name: cleanName,
+      createdAt: new Date().toISOString()
+    });
+    
+    await this.saveManifest();
+    return newId;
   }
 
   async saveManifest() {
@@ -112,8 +158,15 @@ export class NativeWorkspaceManager {
     if (this.onManifestUpdated) this.onManifestUpdated();
   }
 
-  async createBoard(title = "Untitled Board", topic = "") {
+  async createBoard(title = "Untitled Board", topic = "", folderId = null) {
     if (!this.manifest) await this.init();
+
+    let targetFolderId = null;
+    if (folderId && typeof folderId === 'string' && folderId.trim() !== '') {
+      if (this.manifest.folders && this.manifest.folders.some(f => f.id === folderId)) {
+        targetFolderId = folderId;
+      }
+    }
 
     const newId = crypto.randomUUID();
     const dirName = getSafeDirName(newId, title);
@@ -127,6 +180,7 @@ export class NativeWorkspaceManager {
     const meta = {
       id: newId,
       title: title,
+      folderId: targetFolderId,
       createdAt: now,
       updatedAt: now
     };
@@ -154,7 +208,7 @@ export class NativeWorkspaceManager {
       createdAt: now,
       updatedAt: now,
       lastOpenedAt: now,
-      folderId: null
+      folderId: targetFolderId
     };
 
     if (topic && topic.trim() !== "") {
@@ -303,8 +357,46 @@ export class NativeWorkspaceManager {
     return true;
   }
 
+  async updateBoardFolder(boardId, newFolderId) {
+    if (!this.manifest) return false;
+    
+    const boardEntry = this.manifest.boards.find(b => b.id === boardId);
+    if (!boardEntry) return false;
+
+    // Validate folder exists or null
+    let targetFolderId = null;
+    if (newFolderId && typeof newFolderId === 'string' && newFolderId.trim() !== '') {
+      if (this.manifest.folders && this.manifest.folders.some(f => f.id === newFolderId)) {
+        targetFolderId = newFolderId;
+      }
+    }
+    
+    boardEntry.folderId = targetFolderId;
+    boardEntry.updatedAt = new Date().toISOString();
+    
+    // Update meta.json
+    const dirName = boardEntry.dirName || boardId;
+    const boardDir = `${this.workspaceDirName}/boards/${dirName}`;
+    try {
+      const metaPath = `${boardDir}/meta.json`;
+      const metaContents = await readTextFile(metaPath, this.basePathObj);
+      const meta = JSON.parse(metaContents);
+      meta.folderId = targetFolderId;
+      meta.updatedAt = boardEntry.updatedAt;
+      await writeTextFile(metaPath, JSON.stringify(meta, null, 2), this.basePathObj);
+    } catch (e) {
+      console.error(`Failed to update meta.json during folder update of ${boardId}`, e);
+    }
+    
+    await this.saveManifest();
+    return true;
+  }
+
   async deleteBoard(boardId) {
     if (!this.manifest) return false;
+    
+    // Resolve the dirName FIRST before filtering it out of the manifest!
+    const dirName = this.getBoardDirName(boardId);
     
     this.manifest.boards = this.manifest.boards.filter(b => b.id !== boardId);
     this.manifest.recentBoardIds = this.manifest.recentBoardIds.filter(id => id !== boardId);
@@ -316,7 +408,6 @@ export class NativeWorkspaceManager {
     await this.saveManifest();
     
     try {
-      const dirName = this.getBoardDirName(boardId);
       const boardDir = `${this.workspaceDirName}/boards/${dirName}`;
       await remove(boardDir, { ...this.basePathObj, recursive: true });
     } catch (e) {

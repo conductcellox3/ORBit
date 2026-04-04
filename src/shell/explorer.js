@@ -34,6 +34,87 @@ export class Explorer {
     nativeHeader.textContent = 'Native Boards';
     nativeHeaderContainer.appendChild(nativeHeader);
 
+    const actionsContainer = document.createElement('div');
+    actionsContainer.style.display = 'flex';
+    actionsContainer.style.gap = '8px';
+
+    const newFolderBtn = document.createElement('div');
+    newFolderBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`;
+    newFolderBtn.style.cursor = 'pointer';
+    newFolderBtn.style.color = 'var(--color-text-muted)';
+    newFolderBtn.style.display = 'flex';
+    newFolderBtn.style.alignItems = 'center';
+    newFolderBtn.title = 'New Virtual Folder';
+    newFolderBtn.addEventListener('mouseenter', () => newFolderBtn.style.color = 'var(--color-text, #fff)');
+    newFolderBtn.addEventListener('mouseleave', () => newFolderBtn.style.color = 'var(--color-text-muted)');
+    
+    newFolderBtn.addEventListener('click', () => {
+        if (document.getElementById('inline-folder-create')) return;
+        
+        const fContainer = document.createElement('div');
+        fContainer.id = 'inline-folder-create';
+        fContainer.style.padding = '8px 16px';
+        fContainer.style.display = 'flex';
+        fContainer.style.flexDirection = 'column';
+        fContainer.style.gap = '4px';
+        fContainer.style.borderBottom = '1px solid var(--border-color)';
+        fContainer.style.background = 'rgba(0,0,0,0.02)';
+        
+        const fInput = document.createElement('input');
+        fInput.type = 'text';
+        fInput.placeholder = 'Folder Name...';
+        fInput.style.border = '1px solid var(--border-color)';
+        fInput.style.background = 'var(--bg-panel, #FFFFFF)';
+        fInput.style.color = 'var(--color-text-main, #202124)';
+        fInput.style.outline = 'none';
+        fInput.style.borderRadius = '3px';
+        fInput.style.padding = '4px 6px';
+        fInput.style.fontSize = '12px';
+        fInput.style.width = '100%';
+        fInput.style.boxSizing = 'border-box';
+        
+        const errLabel = document.createElement('div');
+        errLabel.style.color = 'var(--color-danger, #d93025)';
+        errLabel.style.fontSize = '10px';
+        errLabel.style.display = 'none';
+
+        fContainer.appendChild(fInput);
+        fContainer.appendChild(errLabel);
+        
+        treeContainer.insertBefore(fContainer, nativeHeaderContainer.nextSibling);
+        fInput.focus();
+
+        const submit = async () => {
+             const val = fInput.value.trim();
+             if (!val) {
+                 errLabel.textContent = "Folder name cannot be empty";
+                 errLabel.style.display = 'block';
+                 return;
+             }
+             const id = await workspaceManager.createFolder(val);
+             if (!id) {
+                 errLabel.textContent = "Folder name already exists";
+                 errLabel.style.display = 'block';
+                 return;
+             }
+             fContainer.remove();
+             await this.mount();
+        };
+
+        fInput.addEventListener('keydown', (e) => {
+             if (e.key === 'Escape') {
+                 fContainer.remove();
+                 e.preventDefault();
+             } else if (e.key === 'Enter') {
+                 if (e.isComposing) return;
+                 submit();
+                 e.preventDefault();
+             }
+        });
+        
+        // Removed blur listener deliberately so UI stays open to view errors
+    });
+
     const newBoardBtn = document.createElement('div');
     newBoardBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -149,8 +230,27 @@ export class Explorer {
         setTimeout(() => { suggestionBox.style.display = 'none'; }, 100);
       });
 
+      const folderSelect = document.createElement('select');
+      styleInput(folderSelect);
+      folderSelect.style.cursor = 'pointer';
+      
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = 'Inbox';
+      folderSelect.appendChild(defaultOpt);
+      
+      const folders = workspaceManager.getFolders();
+      folders.sort((a, b) => a.name.localeCompare(b.name));
+      folders.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f.id;
+          opt.textContent = f.name;
+          folderSelect.appendChild(opt);
+      });
+
       creationContainer.appendChild(titleInput);
       creationContainer.appendChild(topicInputContainer);
+      creationContainer.appendChild(folderSelect);
 
       treeContainer.insertBefore(creationContainer, nativeHeaderContainer.nextSibling);
       
@@ -166,10 +266,11 @@ export class Explorer {
         const title = titleInput.value.trim();
         if (!title) return; // Block empty submission
         const topic = topicInput.value.trim();
+        const folderId = folderSelect.value || null;
         
         cleanup();
         
-        const result = await workspaceManager.createBoard(title, topic);
+        const result = await workspaceManager.createBoard(title, topic, folderId);
         await this.app.loadNativeBoard(result.id);
         await this.mount(); // Re-render tree
       };
@@ -192,28 +293,79 @@ export class Explorer {
       
       const handleBlur = (e) => {
         setTimeout(() => {
-          if (document.activeElement !== titleInput && document.activeElement !== topicInput) {
+          if (document.activeElement !== titleInput && 
+              document.activeElement !== topicInput && 
+              document.activeElement !== folderSelect) {
             cleanup();
           }
         }, 150);
       };
       titleInput.addEventListener('blur', handleBlur);
       topicInput.addEventListener('blur', handleBlur);
+      folderSelect.addEventListener('blur', handleBlur);
     });
-    nativeHeaderContainer.appendChild(newBoardBtn);
+    actionsContainer.appendChild(newFolderBtn);
+    actionsContainer.appendChild(newBoardBtn);
+    nativeHeaderContainer.appendChild(actionsContainer);
     treeContainer.appendChild(nativeHeaderContainer);
 
     const nativeManifest = workspaceManager.manifest;
     if (nativeManifest && nativeManifest.boards.length > 0) {
-      for (const board of nativeManifest.boards) {
-        const itemEl = this.createTreeItem(board, '📄', false);
-        if (this.app.state.boardId === board.id) itemEl.classList.add('is-active');
-        
-        itemEl.addEventListener('click', async () => {
-          await this.app.loadNativeBoard(board.id);
-          this.highlightItem(treeContainer, itemEl);
-        });
-        treeContainer.appendChild(itemEl);
+      const folders = workspaceManager.getFolders();
+      folders.sort((a,b) => a.name.localeCompare(b.name));
+      
+      const renderGroup = (folderId, titleText) => {
+          const matchedBoards = nativeManifest.boards.filter(b => b.folderId === folderId || (!b.folderId && !folderId));
+          // Always render Inbox. Only render user folders if they exist, or keep them visible so they don't vanish when empty.
+          // The spec says "boards assigned to a folder render under that folder". 
+          // Empty folders should be visible to prove they exist.
+          
+          const headerContainer = document.createElement('div');
+          headerContainer.style.display = 'flex';
+          headerContainer.style.alignItems = 'center';
+          headerContainer.style.fontSize = '10px';
+          headerContainer.style.color = 'var(--color-text-main)';
+          headerContainer.style.fontWeight = '500';
+          headerContainer.style.padding = '6px 6px 4px 12px';
+          headerContainer.style.marginTop = '2px';
+          
+          const folderIcon = document.createElement('span');
+          folderIcon.textContent = folderId === null ? '📥' : '📁';
+          folderIcon.style.marginRight = '6px';
+          folderIcon.style.opacity = '0.7';
+          
+          headerContainer.appendChild(folderIcon);
+          headerContainer.appendChild(document.createTextNode(titleText));
+          treeContainer.appendChild(headerContainer);
+          
+          if (matchedBoards.length === 0) {
+              const emptyEl = document.createElement('div');
+              emptyEl.className = 'mock-tree-item';
+              emptyEl.style.opacity = '0.4';
+              emptyEl.style.paddingLeft = '24px';
+              emptyEl.style.paddingTop = '2px';
+              emptyEl.style.fontSize = '11px';
+              emptyEl.textContent = 'Empty';
+              treeContainer.appendChild(emptyEl);
+          } else {
+              for (const board of matchedBoards) {
+                const itemEl = this.createTreeItem(board, '📄', false);
+                itemEl.style.paddingLeft = '24px'; // indent slightly inside virtual folder
+                
+                if (this.app.state.boardId === board.id) itemEl.classList.add('is-active');
+                
+                itemEl.addEventListener('click', async () => {
+                  await this.app.loadNativeBoard(board.id);
+                  this.highlightItem(treeContainer, itemEl);
+                });
+                treeContainer.appendChild(itemEl);
+              }
+          }
+      };
+      
+      renderGroup(null, 'Inbox');
+      for (const f of folders) {
+          renderGroup(f.id, f.name);
       }
     } else {
       const emptyEl = document.createElement('div');
@@ -393,6 +545,7 @@ export class Explorer {
              if (confirm(`Are you sure you want to delete "${board.title}"?\nThis cannot be undone.`)) {
                 await workspaceManager.deleteBoard(board.id);
                 if (this.app.state.boardId === board.id) {
+                    this.app.state.boardId = null;
                     await this.app.loadNativeBoard();
                 }
                 await this.mount();

@@ -229,6 +229,61 @@ export class PropertiesPanel {
     // Metadata
     if (this.app.state.boardId && workspaceManager.manifest) {
       const entry = workspaceManager.manifest.boards.find(b => b.id === this.app.state.boardId);
+      
+      if (!isLegacy) {
+        const folderRow = document.createElement('div');
+        folderRow.className = 'orbit-properties-group';
+        
+        const fLabel = document.createElement('div');
+        fLabel.className = 'orbit-properties-label';
+        fLabel.textContent = 'Folder';
+        
+        const fVal = document.createElement('div');
+        fVal.className = 'orbit-property-val';
+        
+        const fSelect = document.createElement('select');
+        fSelect.style.width = '100%';
+        fSelect.style.background = 'transparent';
+        fSelect.style.border = '1px solid transparent';
+        fSelect.style.color = 'var(--color-text-main)';
+        fSelect.style.outline = 'none';
+        fSelect.style.fontSize = 'inherit';
+        fSelect.style.fontFamily = 'inherit';
+        fSelect.style.cursor = 'pointer';
+        
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = '📥 Inbox';
+        fSelect.appendChild(defaultOpt);
+        
+        const folders = workspaceManager.getFolders();
+        folders.sort((a, b) => a.name.localeCompare(b.name));
+        folders.forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = f.id;
+            opt.textContent = `📁 ${f.name}`;
+            fSelect.appendChild(opt);
+        });
+        
+        fSelect.value = entry ? (entry.folderId || '') : '';
+        
+        fSelect.addEventListener('change', async () => {
+          const selectedId = fSelect.value || null;
+          if (this.app.state.boardId) {
+             await workspaceManager.updateBoardFolder(this.app.state.boardId, selectedId);
+             this.softUpdate();
+             if (this.app.shell && this.app.shell.explorer) {
+                 this.app.shell.explorer.mount(); // Refresh explorer dynamically
+             }
+          }
+        });
+        
+        fVal.appendChild(fSelect);
+        folderRow.appendChild(fLabel);
+        folderRow.appendChild(fVal);
+        container.appendChild(folderRow);
+      }
+
       if (entry) {
         container.appendChild(this.createRow('Created', new Date(entry.createdAt).toLocaleString()));
         container.appendChild(this.createRow('Updated', new Date(entry.updatedAt).toLocaleString()));
