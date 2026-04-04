@@ -111,6 +111,46 @@ export class State {
     }
   }
 
+  resizeFrame(id, width, height) {
+    if (this.sourceType === 'legacy') return;
+    const frame = this.frames.get(id);
+    if (frame && (frame.width !== width || frame.height !== height)) {
+      frame.width = width;
+      frame.height = height;
+      this.notify();
+    }
+  }
+
+  setNoteColor(id, preset) {
+    if (this.sourceType === 'legacy') return;
+    const note = this.notes.get(id);
+    if (!note) return;
+    
+    if (preset === 'none' || preset === 'neutral') {
+      delete note.colorKey;
+      delete note.colorShade;
+    } else {
+      note.colorKey = preset;
+      note.colorShade = 'light';
+    }
+    this.notify();
+  }
+
+  setFrameColor(id, preset) {
+    if (this.sourceType === 'legacy') return;
+    const frame = this.frames.get(id);
+    if (!frame) return;
+    
+    if (preset === 'none' || preset === 'neutral') {
+      delete frame.colorKey;
+      delete frame.shade;
+    } else {
+      frame.colorKey = preset;
+      frame.shade = 'light';
+    }
+    this.notify();
+  }
+
   addEdge(sourceId, targetId) {
     // Avoid duplicates
     for (const edge of this.edges.values()) {

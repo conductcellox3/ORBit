@@ -16,29 +16,75 @@ export class BoardEvents {
     const container = document.getElementById('canvas-container');
 
     container.addEventListener('contextmenu', (e) => {
-      // Allow frame creation if multiple native notes are selected.
-      if (this.app.state.sourceType === 'native' && this.app.selection.selectedIds.size >= 2) {
-        // Only run if triggered on blank canvas or one of the strictly selected notes
-        const targetId = e.target.closest('.orbit-note')?.dataset.id;
-        const validTrigger = !targetId || this.app.selection.selectedIds.has(targetId);
-        
-        if (validTrigger) {
-          e.preventDefault();
-          e.stopPropagation();
-          ContextMenu.show(e.clientX, e.clientY, [
-            {
-              label: `Create Frame from Selection (${this.app.selection.selectedIds.size})`,
-              onClick: () => {
-                const newFrameId = this.app.state.createFrameFromSelection(this.app.selection.selectedIds);
-                if (newFrameId) {
-                  this.app.selection.clear();
-                  this.app.selection.select(newFrameId, 'frame');
-                  this.app.commitHistory();
-                }
-              }
-            }
-          ]);
+      if (this.app.state.sourceType !== 'native') return;
+      
+      e.preventDefault();
+      e.stopPropagation();
+
+      const noteEl = e.target.closest('.orbit-note');
+      const frameEl = e.target.closest('.orbit-frame');
+      
+      let targetId = null;
+      let targetType = null;
+
+      if (noteEl) {
+        targetId = noteEl.dataset.id;
+        targetType = 'note';
+      } else if (frameEl) {
+        targetId = frameEl.dataset.id;
+        targetType = 'frame';
+      }
+
+      if (targetId) {
+        if (!this.app.selection.selectedIds.has(targetId) || this.app.selection.type !== targetType) {
+          this.app.selection.clear();
+          this.app.selection.select(targetId, targetType);
         }
+      }
+
+      const items = [];
+
+      if (this.app.selection.selectedIds.size >= 2 && this.app.selection.type === 'note') {
+        items.push({
+          label: `Create Frame from Selection (${this.app.selection.selectedIds.size})`,
+          onClick: () => {
+            const newFrameId = this.app.state.createFrameFromSelection(this.app.selection.selectedIds);
+            if (newFrameId) {
+              this.app.selection.clear();
+              this.app.selection.select(newFrameId, 'frame');
+              this.app.commitHistory();
+            }
+          }
+        });
+      }
+
+      if (targetId && this.app.selection.selectedIds.size > 0) {
+        items.push({
+          label: 'Change Color...',
+          onClick: () => {
+            const colors = ['neutral', 'blue', 'cyan', 'green', 'yellow', 'red'];
+            const colorItems = colors.map(c => ({
+              label: c === 'neutral' ? 'None (Default)' : c.charAt(0).toUpperCase() + c.slice(1),
+              onClick: () => {
+                for (const id of this.app.selection.selectedIds) {
+                  if (this.app.selection.type === 'note') {
+                    this.app.state.setNoteColor(id, c);
+                  } else if (this.app.selection.type === 'frame') {
+                    this.app.state.setFrameColor(id, c);
+                  }
+                }
+                this.app.commitHistory();
+              }
+            }));
+            setTimeout(() => {
+               ContextMenu.show(e.clientX, e.clientY, colorItems);
+            }, 10);
+          }
+        });
+      }
+
+      if (items.length > 0) {
+        ContextMenu.show(e.clientX, e.clientY, items);
       }
     });
 

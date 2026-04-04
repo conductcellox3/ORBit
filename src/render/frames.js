@@ -33,6 +33,9 @@ export class FrameRenderer {
       const titleEl = el.querySelector('.orbit-frame-title');
       titleEl.textContent = frame.title;
 
+      if (frame.colorKey) el.dataset.color = frame.colorKey;
+      else delete el.dataset.color;
+
       el.classList.toggle('is-selected', isFrameSelection && this.app.selection.has(id));
     }
   }
@@ -91,6 +94,59 @@ export class FrameRenderer {
     el.addEventListener('pointerdown', (e) => {
       this.interactions.handlePointerDown('frame', frame.id, e);
     });
+
+    if (this.app.state.sourceType === 'native') {
+      const handle = document.createElement('div');
+      handle.className = 'orbit-resize-handle';
+      
+      let isResizing = false;
+      let startW, startH, startX, startY, zoom;
+
+      handle.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        
+        isResizing = true;
+        handle.setPointerCapture(e.pointerId);
+        
+        startW = el.offsetWidth;
+        startH = el.offsetHeight;
+        startX = e.clientX;
+        startY = e.clientY;
+        zoom = this.app.state.canvas.zoom || 1;
+      });
+
+      handle.addEventListener('pointermove', (e) => {
+        if (!isResizing) return;
+        
+        const dx = (e.clientX - startX) / zoom;
+        const dy = (e.clientY - startY) / zoom;
+        
+        const newW = Math.max(160, startW + dx);
+        const newH = Math.max(100, startH + dy);
+        
+        el.style.width = `${newW}px`;
+        el.style.height = `${newH}px`;
+      });
+
+      const cleanup = (e) => {
+        if (!isResizing) return;
+        isResizing = false;
+        handle.releasePointerCapture(e.pointerId);
+        
+        const finalW = el.offsetWidth;
+        const finalH = el.offsetHeight;
+        
+        this.app.state.resizeFrame(frame.id, finalW, finalH);
+        this.app.commitHistory();
+      };
+
+      handle.addEventListener('pointerup', cleanup);
+      handle.addEventListener('pointercancel', cleanup);
+      handle.addEventListener('lostpointercapture', cleanup);
+      
+      el.appendChild(handle);
+    }
 
     return el;
   }

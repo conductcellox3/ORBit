@@ -39,6 +39,9 @@ export class NoteRenderer {
         contentEl.textContent = note.text;
       }
 
+      if (note.colorKey) el.dataset.color = note.colorKey;
+      else delete el.dataset.color;
+
       el.classList.toggle('is-selected', isNoteSelection && this.app.selection.has(id));
     }
   }
@@ -175,7 +178,7 @@ export class NoteRenderer {
 
     if (this.app.state.sourceType === 'native') {
       const handle = document.createElement('div');
-      handle.className = 'orbit-note-resize-handle';
+      handle.className = 'orbit-resize-handle';
       
       let isResizing = false;
       let startW, startH, startX, startY, zoom;
