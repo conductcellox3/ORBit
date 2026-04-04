@@ -1,6 +1,6 @@
 export class State {
   constructor() {
-    this.boardId = crypto.randomUUID();
+    this.boardId = null;
     this.title = 'Main Board';
     this.slug = '';
     this.notes = new Map(); // id -> { id, text, x, y, width, height }
@@ -80,6 +80,14 @@ export class State {
   addNote(x, y, text = '') {
     const id = crypto.randomUUID();
     this.notes.set(id, { id, text, x, y, parentFrameId: null });
+    this.notify();
+    return id;
+  }
+
+  addImageNote(x, y, src, width, height) {
+    if (this.sourceType === 'legacy') return null;
+    const id = crypto.randomUUID();
+    this.notes.set(id, { id, type: 'image', src, x, y, width, height, caption: '', parentFrameId: null });
     this.notify();
     return id;
   }

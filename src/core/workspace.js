@@ -1,4 +1,5 @@
-import { BaseDirectory, exists, mkdir, readTextFile, writeTextFile, remove, rename } from '@tauri-apps/plugin-fs';
+import { BaseDirectory, exists, mkdir, readTextFile, writeTextFile, remove, rename, writeFile } from '@tauri-apps/plugin-fs';
+import { convertFileSrc } from '@tauri-apps/api/core';
 
 const getSafeDirName = (id, title) => {
   const safeTitle = (title || 'Untitled').replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim().replace(/\s+/g, '_');
@@ -285,6 +286,39 @@ export class NativeWorkspaceManager {
     }
     
     return await resolve(rootPath, 'boards', dirName);
+  }
+
+  async saveBoardAsset(boardId, arrayBuffer, suffix) {
+    if (!this.manifest) await this.init();
+    
+    const dirName = this.getBoardDirName(boardId);
+    const boardDir = `${this.workspaceDirName}/boards/${dirName}`;
+    const assetsDir = `${boardDir}/assets/images`;
+    
+    await this.ensureDir(assetsDir);
+    
+    const uuid = crypto.randomUUID();
+    const relativePath = `assets/images/${uuid}.${suffix}`;
+    const absoluteStorePath = `${boardDir}/${relativePath}`;
+    
+    try {
+      const uint8Array = new Uint8Array(arrayBuffer);
+      await writeFile(absoluteStorePath, uint8Array, this.basePathObj);
+      return relativePath;
+    } catch (e) {
+      console.error(`Failed to write board asset for ${boardId}:`, e);
+      return null;
+    }
+  }
+
+  async resolveAssetUrl(boardId, relativeSrc) {
+    if (!relativeSrc) return null;
+    if (relativeSrc.startsWith('http') || relativeSrc.startsWith('data:')) return relativeSrc;
+    
+    const boardPath = await this.resolveBoardPath(boardId);
+    const { resolve } = await import('@tauri-apps/api/path');
+    const absolutePath = await resolve(boardPath, relativeSrc);
+    return convertFileSrc(absolutePath);
   }
 }
 

@@ -1,4 +1,5 @@
 import { ContextMenu } from '../shell/contextMenu.js';
+import { workspaceManager } from '../core/workspace.js';
 
 export class BoardEvents {
   constructor(app, canvas, drag, edgeDraw) {
@@ -59,7 +60,22 @@ export class BoardEvents {
       }
 
       if (targetId && this.app.selection.selectedIds.size > 0) {
-        items.push({
+        let hasNonImage = false;
+        for (const id of this.app.selection.selectedIds) {
+          if (this.app.selection.type === 'note') {
+            const note = this.app.state.notes.get(id);
+            if (note && note.type !== 'image' && !note.isImage) {
+              hasNonImage = true;
+              break;
+            }
+          } else {
+            hasNonImage = true;
+            break;
+          }
+        }
+
+        if (hasNonImage) {
+          items.push({
           label: 'Change Color...',
           onClick: () => {
             const colors = ['neutral', 'blue', 'cyan', 'green', 'yellow', 'red'];
@@ -81,6 +97,7 @@ export class BoardEvents {
             }, 10);
           }
         });
+        }
       }
 
       if (items.length > 0) {
@@ -247,6 +264,71 @@ export class BoardEvents {
           }
           this.app.selection.clear();
           this.app.commitHistory();
+        }
+      }
+    });
+
+    window.addEventListener('paste', async (e) => {
+      if (this.app.state.sourceType !== 'native') return;
+      
+      if (
+        document.activeElement.tagName === 'INPUT' || 
+        document.activeElement.tagName === 'TEXTAREA' || 
+        document.activeElement.isContentEditable ||
+        e.target.closest('[contenteditable="true"]') ||
+        e.target.closest('input') ||
+        e.target.closest('textarea')
+      ) {
+        return;
+      }
+
+      if (!e.clipboardData || !e.clipboardData.items) return;
+
+      for (const item of Array.from(e.clipboardData.items)) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          
+          const suffix = item.type.split('/')[1] || 'png';
+          const file = item.getAsFile();
+          if (!file) continue;
+
+          const url = URL.createObjectURL(file);
+          const img = new Image();
+          img.onload = async () => {
+            let w = img.width;
+            let h = img.height;
+            URL.revokeObjectURL(url);
+            
+            const maxW = Math.min(600, window.innerWidth * 0.8);
+            const maxH = Math.min(600, window.innerHeight * 0.8);
+            
+            if (w > maxW || h > maxH) {
+              const ratio = Math.min(maxW / w, maxH / h);
+              w = w * ratio;
+              h = h * ratio;
+            }
+
+            const arrayBuffer = await file.arrayBuffer();
+            const relativeSrc = await workspaceManager.saveBoardAsset(this.app.state.boardId, arrayBuffer, suffix);
+            
+            if (relativeSrc) {
+              const vw = window.innerWidth;
+              const vh = window.innerHeight;
+              const center = this.canvas.viewport.screenToCanvas(vw / 2, vh / 2);
+              
+              const spawnX = center.x - (w / 2);
+              const spawnY = center.y - (h / 2);
+              
+              const newId = this.app.state.addImageNote(spawnX, spawnY, relativeSrc, w, h);
+              if (newId) {
+                this.app.selection.clear();
+                this.app.selection.select(newId, 'note');
+                this.app.commitHistory();
+              }
+            }
+          };
+          img.src = url;
+          break;
         }
       }
     });

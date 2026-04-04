@@ -1,4 +1,5 @@
 import { assetResolver } from '../legacy/assetResolver.js';
+import { workspaceManager } from '../core/workspace.js';
 
 export class NoteRenderer {
   constructor(app, container, interactions) {
@@ -51,7 +52,7 @@ export class NoteRenderer {
     el.className = 'orbit-note';
     el.dataset.id = note.id;
     
-    if (note.isImage) {
+    if (note.type === 'image' || note.isImage) {
       el.classList.add('is-image-note');
       
       const img = document.createElement('img');
@@ -122,13 +123,23 @@ export class NoteRenderer {
       };
 
       // Async resolve image src
-      assetResolver.resolveImage(note.src).then(resolvedSrc => {
-        if (resolvedSrc) {
-          img.src = resolvedSrc;
-        } else {
-          img.dispatchEvent(new Event('error'));
-        }
-      });
+      if (this.app.state.sourceType === 'native') {
+        workspaceManager.resolveAssetUrl(this.app.state.boardId, note.src).then(resolvedSrc => {
+          if (resolvedSrc) {
+            img.src = resolvedSrc;
+          } else {
+            img.dispatchEvent(new Event('error'));
+          }
+        });
+      } else {
+        assetResolver.resolveImage(note.src).then(resolvedSrc => {
+          if (resolvedSrc) {
+            img.src = resolvedSrc;
+          } else {
+            img.dispatchEvent(new Event('error'));
+          }
+        });
+      }
       
       el.appendChild(img);
       
@@ -203,8 +214,20 @@ export class NoteRenderer {
         const dx = (e.clientX - startX) / zoom;
         const dy = (e.clientY - startY) / zoom;
         
-        const newW = Math.max(120, startW + dx);
-        const newH = Math.max(56, startH + dy);
+        let newW = Math.max(30, startW + dx);
+        let newH = Math.max(30, startH + dy);
+        
+        if (note.type === 'image' || note.isImage) {
+          // Fix aspect ratio based on whichever dimension has changed more drastically, or just Width.
+          // Standard corner drag maps cleanly to Width, adjusting Height.
+          // Ensure we don't divide by zero.
+          if (startW > 0) {
+              newH = newW * (startH / startW);
+          }
+        } else {
+          newW = Math.max(120, newW);
+          newH = Math.max(56, newH);
+        }
         
         el.style.width = `${newW}px`;
         el.style.height = `${newH}px`;
