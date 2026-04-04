@@ -249,6 +249,33 @@ export class NativeWorkspaceManager {
     return true;
   }
 
+  async updateBoardTopic(boardId, newTopic) {
+    if (!this.manifest) return false;
+    
+    const boardEntry = this.manifest.boards.find(b => b.id === boardId);
+    if (!boardEntry) return false;
+    
+    boardEntry.topic = newTopic;
+    boardEntry.updatedAt = new Date().toISOString();
+    
+    // Update meta.json
+    const dirName = boardEntry.dirName || boardId;
+    const boardDir = `${this.workspaceDirName}/boards/${dirName}`;
+    try {
+      const metaPath = `${boardDir}/meta.json`;
+      const metaContents = await readTextFile(metaPath, this.basePathObj);
+      const meta = JSON.parse(metaContents);
+      meta.topic = newTopic;
+      meta.updatedAt = boardEntry.updatedAt;
+      await writeTextFile(metaPath, JSON.stringify(meta, null, 2), this.basePathObj);
+    } catch (e) {
+      console.error(`Failed to update meta.json during topic update of ${boardId}`, e);
+    }
+    
+    await this.saveManifest();
+    return true;
+  }
+
   async deleteBoard(boardId) {
     if (!this.manifest) return false;
     

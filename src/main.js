@@ -6,6 +6,7 @@ import { BoardEvents } from './interactions/boardEvents.js';
 
 import { ShellLayout } from './shell/layout.js';
 import { ImageViewer } from './render/imageViewer.js';
+import { PropertiesPanel } from './shell/propertiesPanel.js';
 
 async function bootstrap() {
   const app = new App();
@@ -14,6 +15,8 @@ async function bootstrap() {
   
   const shell = new ShellLayout(app);
   shell.mount();
+  
+  app.propertiesPanel = new PropertiesPanel(app);
   
   const edgeDraw = new EdgeDrawInteraction(app, null);
   const drag = new DragInteraction(app, null, edgeDraw);

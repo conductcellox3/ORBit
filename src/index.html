@@ -55,21 +55,15 @@
         </div>
 
         <!-- Right Side -->
-        <div id="right-pane" class="pane is-collapsed">
+        <div id="right-pane" class="pane">
           <div class="pane-content">
-            <div class="pane-header">Properties</div>
-            
-            <div class="mock-properties">
-              <div class="mock-property-group">
-                <div class="mock-label">Color</div>
-                <div class="mock-value">Default</div>
-              </div>
-              <div class="mock-property-group">
-                <div class="mock-label">Created</div>
-                <div class="mock-value">Just now</div>
-              </div>
+            <div class="pane-header orbit-properties-header">
+              <button class="orbit-panel-tab is-active" data-target="board">Board</button>
+              <button class="orbit-panel-tab" data-target="inspect">Inspect</button>
             </div>
-            
+            <div id="orbit-properties-body">
+              <!-- Content will be injected directly by PropertiesPanel -->
+            </div>
           </div>
         </div>
         <div id="right-rail" class="rail"></div>

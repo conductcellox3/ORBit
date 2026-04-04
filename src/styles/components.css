@@ -295,3 +295,125 @@
   background: rgba(255, 255, 255, 0.25);
   transform: translateY(-1px);
 }
+
+/* Properties Panel Foundation */
+.orbit-properties-header {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.orbit-panel-tab {
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--color-text-dim, #64748B);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.orbit-panel-tab.is-active {
+  color: var(--color-interactive-primary, #3B82F6);
+  border-bottom-color: var(--color-interactive-primary, #3B82F6);
+}
+
+.orbit-properties {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.orbit-properties-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.orbit-properties-group.no-label {
+  margin-top: 8px;
+}
+
+.orbit-properties-group.wrap {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.orbit-property-label {
+  font-size: 12px;
+  color: var(--color-text-dim, #64748B);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.orbit-property-value {
+  font-size: 14px;
+  color: var(--color-text-main, #202124);
+  padding: 4px 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.orbit-property-input,
+.orbit-property-select {
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--color-text-main, #202124);
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 1px solid var(--border-color, #E2E8F0);
+  padding: 4px 0;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+  width: 100%;
+}
+
+.orbit-property-input:focus,
+.orbit-property-select:focus {
+  border-bottom-color: var(--color-interactive-primary, #3B82F6);
+  background: var(--color-interactive-hover-transparent, rgba(59, 130, 246, 0.05));
+}
+
+.orbit-property-input:disabled,
+.orbit-property-select:disabled {
+  color: var(--color-text-dim, #64748B);
+  border-bottom-color: transparent;
+  cursor: default;
+}
+
+.orbit-property-button {
+  background: var(--color-surface, #F1F5F9);
+  border: 1px solid var(--border-color, #E2E8F0);
+  color: var(--color-text-main, #202124);
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.orbit-property-button:hover {
+  background: var(--border-color, #E2E8F0);
+}
+
+.orbit-property-button.primary {
+  background: var(--color-interactive-primary, #3B82F6);
+  color: white;
+  border-color: var(--color-interactive-primary, #3B82F6);
+}
+
+.orbit-property-button.primary:hover {
+  background: var(--color-interactive-hover, #2563EB);
+}
+
+.orbit-properties-empty {
+  color: var(--color-text-dim, #64748B);
+  font-size: 14px;
+  text-align: center;
+  margin-top: 40px;
+}
