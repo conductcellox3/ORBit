@@ -147,6 +147,15 @@ export class Explorer {
       const renderGroup = (folderId, titleText) => {
           const matchedBoards = nativeManifest.boards.filter(b => b.folderId === folderId || (!b.folderId && !folderId));
           
+          const folderKey = folderId ? `folder:${folderId}` : '__inbox__';
+          let collapseState = {};
+          try {
+            collapseState = JSON.parse(localStorage.getItem('orbit_folder_collapse_state')) || {};
+          } catch (e) {
+            collapseState = {};
+          }
+          let isCollapsed = !!collapseState[folderKey];
+          
           const headerContainer = document.createElement('div');
           headerContainer.style.display = 'flex';
           headerContainer.style.alignItems = 'center';
@@ -155,6 +164,16 @@ export class Explorer {
           headerContainer.style.fontWeight = '500';
           headerContainer.style.padding = '6px 6px 4px 12px';
           headerContainer.style.marginTop = '2px';
+          headerContainer.style.cursor = 'pointer';
+          headerContainer.style.userSelect = 'none';
+
+          const chevron = document.createElement('span');
+          chevron.innerHTML = isCollapsed 
+              ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>` 
+              : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+          chevron.style.marginRight = '4px';
+          chevron.style.display = 'flex';
+          chevron.style.opacity = '0.5';
           
           const folderIcon = document.createElement('span');
           folderIcon.textContent = folderId === null ? '📥' : '📁';
@@ -163,16 +182,41 @@ export class Explorer {
           
           const titleSpan = document.createElement('span');
           titleSpan.textContent = titleText;
+          titleSpan.style.flex = '1';
           
+          const countSpan = document.createElement('span');
+          countSpan.textContent = matchedBoards.length;
+          countSpan.style.opacity = '0.4';
+          countSpan.style.marginRight = '8px';
+
+          headerContainer.appendChild(chevron);
           headerContainer.appendChild(folderIcon);
           headerContainer.appendChild(titleSpan);
+          headerContainer.appendChild(countSpan);
           treeContainer.appendChild(headerContainer);
+          
+          const groupContentContainer = document.createElement('div');
+          groupContentContainer.style.display = isCollapsed ? 'none' : 'block';
+          treeContainer.appendChild(groupContentContainer);
+
+          headerContainer.addEventListener('click', (e) => {
+              isCollapsed = !isCollapsed;
+              groupContentContainer.style.display = isCollapsed ? 'none' : 'block';
+              chevron.innerHTML = isCollapsed 
+                  ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>` 
+                  : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+              try {
+                  const state = JSON.parse(localStorage.getItem('orbit_folder_collapse_state')) || {};
+                  state[folderKey] = isCollapsed;
+                  localStorage.setItem('orbit_folder_collapse_state', JSON.stringify(state));
+              } catch (e) {}
+          });
 
           if (folderId !== null) {
               headerContainer.classList.add('has-context-menu');
-              headerContainer.style.cursor = 'pointer';
               headerContainer.addEventListener('contextmenu', (e) => {
                   e.preventDefault();
+                  e.stopPropagation();
                   
                   const handleNewBoard = () => {
                       this.showNewBoardInput(folderId);
@@ -260,15 +304,15 @@ export class Explorer {
               const emptyEl = document.createElement('div');
               emptyEl.className = 'mock-tree-item';
               emptyEl.style.opacity = '0.4';
-              emptyEl.style.paddingLeft = '24px';
+              emptyEl.style.paddingLeft = '38px';
               emptyEl.style.paddingTop = '2px';
               emptyEl.style.fontSize = '11px';
               emptyEl.textContent = 'Empty';
-              treeContainer.appendChild(emptyEl);
+              groupContentContainer.appendChild(emptyEl);
           } else {
               for (const board of matchedBoards) {
                 const itemEl = this.createTreeItem(board, '📄', false);
-                itemEl.style.paddingLeft = '24px';
+                itemEl.style.paddingLeft = '38px';
                 
                 if (this.app.state.boardId === board.id) itemEl.classList.add('is-active');
                 
@@ -276,7 +320,7 @@ export class Explorer {
                   await this.app.loadNativeBoard(board.id);
                   this.highlightItem(treeContainer, itemEl);
                 });
-                treeContainer.appendChild(itemEl);
+                groupContentContainer.appendChild(itemEl);
               }
           }
       };
