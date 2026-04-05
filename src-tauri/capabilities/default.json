@@ -35,6 +35,18 @@
           "path": "$APPDATA/**"
         },
         {
+          "path": "$HOME/**"
+        },
+        {
+          "path": "$DESKTOP/**"
+        },
+        {
+          "path": "$DOCUMENT/**"
+        },
+        {
+          "path": "$DOWNLOAD/**"
+        },
+        {
           "path": "D:/Antigravity/ORBit/BoardSample/workspace/**"
         },
         {

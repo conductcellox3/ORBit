@@ -1,4 +1,5 @@
 import { appSettings } from '../core/settings.js';
+import { ImportLegacyBoardDialog } from './importLegacyBoardDialog.js';
 
 export class SettingsPanel {
     constructor(app, elementId) {
@@ -97,6 +98,40 @@ export class SettingsPanel {
         });
         
         body.appendChild(legacyRow);
+
+        // Developer Menu Section
+        const devHeader = document.createElement('div');
+        devHeader.style.marginTop = '16px';
+        devHeader.style.paddingTop = '16px';
+        devHeader.style.borderTop = '1px solid var(--border-color)';
+        devHeader.style.fontWeight = '500';
+        devHeader.style.fontSize = '12px';
+        devHeader.style.color = 'var(--color-text-main)';
+        devHeader.textContent = 'Developer Menu';
+        body.appendChild(devHeader);
+
+        const importBtn = document.createElement('button');
+        importBtn.textContent = 'Import Legacy Board...';
+        importBtn.style.padding = '6px 12px';
+        importBtn.style.fontSize = '11px';
+        importBtn.style.cursor = 'pointer';
+        importBtn.style.border = '1px solid var(--border-color)';
+        importBtn.style.backgroundColor = 'transparent';
+        importBtn.style.borderRadius = '4px';
+        importBtn.style.color = 'var(--color-text-main)';
+        importBtn.style.textAlign = 'left';
+        
+        importBtn.addEventListener('mouseenter', () => importBtn.style.backgroundColor = 'rgba(0,0,0,0.05)');
+        importBtn.addEventListener('mouseleave', () => importBtn.style.backgroundColor = 'transparent');
+        
+        importBtn.addEventListener('click', () => {
+            this.close();
+            const dialog = new ImportLegacyBoardDialog(this.app);
+            dialog.startFlow();
+        });
+
+        body.appendChild(importBtn);
+
         this.element.appendChild(body);
     }
 
