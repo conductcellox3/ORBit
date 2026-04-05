@@ -129,8 +129,22 @@ export class TopbarManager {
             if (this.app.openOrCreateWeeklyBoard) this.app.openOrCreateWeeklyBoard();
         };
 
+        const captureBtn = document.createElement('button');
+        captureBtn.className = 'utility-button clickable';
+        // Camera icon
+        captureBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>`;
+        captureBtn.title = 'Capture Screen Region to Image Note';
+        captureBtn.onclick = () => {
+            if (this.app.startCaptureSession) {
+                this.app.startCaptureSession();
+            } else {
+                console.error("this.app.startCaptureSession is undefined!", this.app);
+            }
+        };
+
         leftIdentity.appendChild(dailyBtn);
         leftIdentity.appendChild(weeklyBtn);
+        leftIdentity.appendChild(captureBtn);
     }
 
     this.element.appendChild(bgBtn);

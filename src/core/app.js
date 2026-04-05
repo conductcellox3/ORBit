@@ -8,6 +8,9 @@ import { GraphModel } from './graphModel.js';
 import { appSettings } from './settings.js';
 import { showToast } from '../shell/toast.js';
 import { getTodayString, getIsoWeekString } from '../utils/dateHelper.js';
+import { invoke } from '@tauri-apps/api/core';
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { PhysicalPosition, PhysicalSize } from '@tauri-apps/api/dpi';
 
 
 export class App {
@@ -144,6 +147,105 @@ export class App {
     const folderId = appSettings.getWeeklyFolderId();
     const title = getIsoWeekString();
     await this._openOrCreateSpecialBoard(folderId, title, '週報');
+  }
+
+  async startCaptureSession() {
+    if (this.isCaptureActive) return;
+    this.isCaptureActive = true;
+    showToast("Starting capture session...");
+    try {
+      if (!this.captureWin) {
+          showToast("Getting capture window...");
+          this.captureWin = await WebviewWindow.getByLabel('capture');
+          if (this.captureWin) {
+              this.captureWin.once('tauri://destroyed', () => { this.captureWin = null; });
+          }
+      }
+      
+      if (!this.captureWin) {
+          showToast("Creating capture window on demand...");
+          this.captureWin = new WebviewWindow('capture', {
+              url: '/capture/captureOverlay.html',
+              title: 'ORBit Capture',
+              transparent: true,
+              decorations: false,
+              alwaysOnTop: true,
+              skipTaskbar: true,
+              visible: false,
+              resizable: false,
+              focus: true
+          });
+          
+          await new Promise((resolve, reject) => {
+              this.captureWin.once('tauri://created', resolve);
+              this.captureWin.once('tauri://error', (e) => reject(`Failed to create window: ${e}`));
+          });
+          this.captureWin.once('tauri://destroyed', () => { this.captureWin = null; });
+      }
+      showToast("Found captureWin, invoking xcap...");
+      
+      const bounds = await invoke('start_capture_session');
+      showToast("xcap finished correctly.");
+      
+      const now = new Date();
+      const filename = `capture_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}.png`;
+      
+      const { join } = await import('@tauri-apps/api/path');
+      const boardAbsPath = await workspaceManager.resolveBoardPath(this.state.boardId);
+      const relativeSrc = `assets/images/${filename}`;
+      const outPath = await join(boardAbsPath, 'assets', 'images', filename);
+      
+      const captureInfo = {
+        ...bounds,
+        relative_src: relativeSrc,
+        out_path: outPath
+      };
+      
+      localStorage.setItem('orbit_capture_info', JSON.stringify(captureInfo));
+      
+      localStorage.removeItem('orbit_capture_result');
+      
+      await this.captureWin.setPosition(new PhysicalPosition(bounds.virtual_bounds.x, bounds.virtual_bounds.y));
+      await this.captureWin.setSize(new PhysicalSize(bounds.virtual_bounds.width, bounds.virtual_bounds.height));
+      
+      // Listen for window storage update
+      const storageHandler = (e) => {
+        if (e.key === 'orbit_capture_result' && e.newValue) {
+           const res = JSON.parse(e.newValue);
+           if (res.status === 'success') {
+               const container = document.getElementById('canvas-container');
+               const rect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+               
+               const screenCenterX = rect.left + rect.width / 2;
+               const screenCenterY = rect.top + rect.height / 2;
+               
+               let pt = { x: screenCenterX, y: screenCenterY };
+               if (this.canvas?.viewport?.screenToCanvas) {
+                   pt = this.canvas.viewport.screenToCanvas(screenCenterX, screenCenterY);
+               }
+               
+               const newId = this.state.addImageNote(pt.x - 150, pt.y - 100, res.relativeSrc, 300, 200);
+               this.selection.clear();
+               this.selection.select(newId, 'note');
+               
+               this.history.commit();
+           }
+           window.removeEventListener('storage', storageHandler);
+           this.isCaptureActive = false;
+        }
+      };
+      
+      window.addEventListener('storage', storageHandler);
+      
+      await this.captureWin.show();
+      await this.captureWin.setFocus();
+      await this.captureWin.emit('init-capture', captureInfo);
+      
+    } catch (e) {
+       showToast(`Failed to start capture: ${e}`);
+       console.error("Failed to start capture", e);
+       this.isCaptureActive = false;
+    }
   }
 
   async openGraphTab() {

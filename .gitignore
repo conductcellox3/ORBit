@@ -22,3 +22,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+assets/captures/
+src-tauri/undefined/assets/captures

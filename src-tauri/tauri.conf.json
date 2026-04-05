@@ -16,6 +16,18 @@
         "title": "ORBit",
         "width": 800,
         "height": 600
+      },
+      {
+        "label": "capture",
+        "title": "ORBit Capture",
+        "url": "/capture/captureOverlay.html",
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "resizable": false,
+        "focus": true
       }
     ],
     "security": {

@@ -65,6 +65,7 @@ async function bootstrap() {
 
   const boardsGraph = new BoardsGraphView(app, 'canvas-container');
   app.boardsGraph = boardsGraph;
+  app.canvas = canvas;
 
   drag.canvas = canvas;
   edgeDraw.canvas = canvas;

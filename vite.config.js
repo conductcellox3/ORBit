@@ -12,5 +12,11 @@ export default defineConfig({
     target: ['es2022', 'chrome105'],
     minify: !process.env.TAURI_DEBUG ? 'esbuild' : false,
     sourcemap: !!process.env.TAURI_DEBUG,
+    rollupOptions: {
+      input: {
+        main: './src/index.html',
+        capture: './src/capture/captureOverlay.html'
+      }
+    }
   },
 });
