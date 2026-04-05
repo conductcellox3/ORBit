@@ -497,6 +497,28 @@ export class NativeWorkspaceManager {
     }
   }
 
+  async copyBoardAssetSafe(sourceBoardId, targetBoardId, relativeSrc) {
+    if (!this.manifest) await this.init();
+    if (!relativeSrc || relativeSrc.startsWith('http') || relativeSrc.startsWith('data:')) return relativeSrc;
+    
+    try {
+      const { resolve } = await import('@tauri-apps/api/path');
+      const { readFile } = await import('@tauri-apps/plugin-fs');
+      
+      const sourceBoardPath = await this.resolveBoardPath(sourceBoardId);
+      const sourcePath = await resolve(sourceBoardPath, relativeSrc);
+      
+      const uint8Array = await readFile(sourcePath, this.basePathObj);
+      const parts = relativeSrc.split('.');
+      const suffix = parts.length > 1 ? parts.pop() : 'png';
+       
+      return await this.saveBoardAsset(targetBoardId, uint8Array.buffer, suffix);
+    } catch (e) {
+      console.error("Failed to copy cross-board asset", e);
+      return null;
+    }
+  }
+
   async resolveAssetUrl(boardId, relativeSrc) {
     if (!relativeSrc) return null;
     if (relativeSrc.startsWith('http') || relativeSrc.startsWith('data:')) return relativeSrc;

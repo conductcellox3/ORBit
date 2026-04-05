@@ -379,12 +379,15 @@ export class App {
 
     if (payload.notes.length > 0 || payload.frames.length > 0) {
       this.clipboard.objects = payload;
+      this.clipboard.sourceBoardId = this.state.boardId;
       this.clipboard.pasteCount = 0;
     }
   }
 
-  pasteClipboardData(targetX, targetY) {
+  async pasteClipboardData(targetX, targetY) {
     if (this.state.sourceType === 'legacy' || !this.clipboard.objects) return;
+    
+    const isCrossBoard = this.clipboard.sourceBoardId && this.clipboard.sourceBoardId !== this.state.boardId;
     
     // Calculate bounds of copied elements to anchor them nicely
     let minX = Infinity, minY = Infinity;
@@ -447,6 +450,15 @@ export class App {
     
     // Reconstruct notes
     for (const note of this.clipboard.objects.notes) {
+      if ((note.type === 'image' || note.isImage) && isCrossBoard && note.src) {
+        const newSrc = await workspaceManager.copyBoardAssetSafe(this.clipboard.sourceBoardId, this.state.boardId, note.src);
+        if (!newSrc) {
+          console.warn(`Skipped pasting image note ${note.id} due to asset copy failure.`);
+          continue; // Safely abort creation of this specific image note
+        }
+        note.src = newSrc;
+      }
+      
       const newId = crypto.randomUUID();
       idMap.set(note.id, newId);
       
