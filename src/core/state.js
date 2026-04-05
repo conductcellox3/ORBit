@@ -46,6 +46,9 @@ export class State {
     this.sourceType = snapshot.sourceType || 'native';
     this.canvas = snapshot.canvas || { panX: 0, panY: 0, zoom: 1 };
     this.notes = new Map(snapshot.notes.map(([k, v]) => {
+      if (v.type === 'background-image') {
+        return [k, { ...v }];
+      }
       const width = v.width ?? v.w;
       const height = v.height ?? v.h;
       return [k, { ...v, width: width === null ? undefined : width, height: height === null ? undefined : height }];
@@ -92,6 +95,21 @@ export class State {
     return id;
   }
 
+  addBackgroundImage(x, y, src, w, h, sourceTemplatePath) {
+    if (this.sourceType === 'legacy') return null;
+    const id = crypto.randomUUID();
+    this.notes.set(id, { 
+      id, 
+      type: 'background-image', 
+      src, 
+      x, y, w, h, 
+      locked: false, 
+      sourceTemplatePath 
+    });
+    this.notify();
+    return id;
+  }
+
   addLinkedNote(payload) {
     if (this.sourceType === 'legacy') return null;
     const id = crypto.randomUUID();
@@ -133,6 +151,18 @@ export class State {
       note.width = width;
       note.height = height;
       this.notify();
+    }
+  }
+
+  updateBackgroundBounds(id, w, h) {
+    if (this.sourceType === 'legacy') return;
+    const note = this.notes.get(id);
+    if (note && note.type === 'background-image') {
+      if (note.w !== w || note.h !== h) {
+        note.w = w;
+        note.h = h;
+        this.notify();
+      }
     }
   }
 

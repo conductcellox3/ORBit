@@ -1,6 +1,7 @@
 import { NoteRenderer } from './notes.js';
 import { FrameRenderer } from './frames.js';
 import { EdgeRenderer } from './edges.js';
+import { BackgroundRenderer } from './backgrounds.js';
 import { Viewport } from './viewport.js';
 
 export class CanvasOrchestrator {
@@ -11,6 +12,9 @@ export class CanvasOrchestrator {
     this.transformLayer = document.getElementById(transformId);
     
     this.viewport = new Viewport(this.transformLayer);
+    
+    const backgroundLayer = document.getElementById('background-layer');
+    this.backgroundRenderer = new BackgroundRenderer(app, backgroundLayer, interactions);
     
     this.noteRenderer = new NoteRenderer(app, this.transformLayer, interactions);
     this.frameRenderer = new FrameRenderer(app, this.transformLayer, interactions);
@@ -32,7 +36,7 @@ export class CanvasOrchestrator {
   render(activeDrawEdge = null) {
     this.transformLayer.style.transform = `translate(${this.viewport.x}px, ${this.viewport.y}px) scale(${this.viewport.zoom})`;
     
-    
+    this.backgroundRenderer.render();
     this.frameRenderer.render();
     this.noteRenderer.render();
     this.edgeRenderer.render(activeDrawEdge);

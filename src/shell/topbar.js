@@ -93,6 +93,21 @@ export class TopbarManager {
        ContextMenu.show(rect.left, rect.bottom + 4, items);
     };
 
+    const bgBtn = document.createElement('button');
+    bgBtn.className = 'utility-button clickable';
+    bgBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`;
+    bgBtn.title = 'Insert Background Template';
+    bgBtn.onclick = (e) => {
+       if (this.app.state.sourceType === 'legacy') {
+         alert("Background images cannot be inserted into read-only legacy boards.");
+         return;
+       }
+       if (this.app.backgroundMenu) {
+           this.app.backgroundMenu.toggle(e.currentTarget);
+       }
+    };
+
+    this.element.appendChild(bgBtn);
     this.element.appendChild(arrangeBtn);
     this.element.appendChild(exportBtn);
     this.element.appendChild(graphBtn);

@@ -66,15 +66,46 @@ export class NativeWorkspaceManager {
 
     // Ensure subdirectories exist
     await this.ensureDir(`${this.workspaceDirName}/boards`);
-    await this.ensureDir(`${this.workspaceDirName}/templates`);
+    await this.ensureDir(`${this.workspaceDirName}/templates/backgrounds`);
     
     // Load or create the manifest
     await this.loadManifest();
+    
+    // Seed default backgrounds non-destructively
+    await this.seedDefaultBackgrounds();
   }
 
   async ensureDir(subPath) {
     if (!(await exists(subPath, this.basePathObj))) {
       await mkdir(subPath, { ...this.basePathObj, recursive: true });
+    }
+  }
+
+  async seedDefaultBackgrounds() {
+    try {
+      const { resolveResource } = await import('@tauri-apps/api/path');
+      const { readTextFile, readFile, writeFile } = await import('@tauri-apps/plugin-fs');
+      
+      const bundlePath = await resolveResource('resources/default_backgrounds/bundle.json');
+      const bundleContent = await readTextFile(bundlePath);
+      const bundle = JSON.parse(bundleContent);
+      
+      for (const folder of bundle.folders) {
+        const targetDir = `${this.workspaceDirName}/templates/backgrounds/${folder.name}`;
+        await this.ensureDir(targetDir);
+        
+        for (const file of folder.files) {
+          const targetPath = `${targetDir}/${file}`;
+          if (!(await exists(targetPath, this.basePathObj))) {
+            const sourcePath = await resolveResource(`resources/default_backgrounds/${folder.name}/${file}`);
+            const data = await readFile(sourcePath);
+            await writeFile(targetPath, data, this.basePathObj);
+          }
+        }
+      }
+    } catch (e) {
+      // It's normal for this to fail during some dev workflows if bundling is off
+      console.warn("Background seed skipped or failed:", e);
     }
   }
 
@@ -517,6 +548,86 @@ export class NativeWorkspaceManager {
       console.error("Failed to copy cross-board asset", e);
       return null;
     }
+  }
+
+  async copyTemplateBackground(targetBoardId, templateRelPath) {
+    if (!this.manifest) await this.init();
+    if (!templateRelPath) return null;
+    
+    try {
+      const { readFile } = await import('@tauri-apps/plugin-fs');
+      const templatePath = `${this.workspaceDirName}/templates/backgrounds/${templateRelPath}`;
+      const uint8Array = await readFile(templatePath, this.basePathObj);
+      
+      const parts = templateRelPath.split('.');
+      const suffix = parts.length > 1 ? parts.pop() : 'png';
+      
+      return await this.saveBoardAsset(targetBoardId, uint8Array.buffer, suffix);
+    } catch (e) {
+      console.error("Failed to copy template background asset", e);
+      return null;
+    }
+  }
+
+  async getBackgroundTemplatesTree() {
+    const { readDir } = await import('@tauri-apps/plugin-fs');
+    const rootPath = `${this.workspaceDirName}/templates/backgrounds`;
+    
+    const scanDir = async (relPath) => {
+      const fullPath = relPath ? `${rootPath}/${relPath}` : rootPath;
+      const entries = await readDir(fullPath, this.basePathObj).catch(() => []);
+      const folders = [];
+      const files = [];
+      
+      for (const entry of entries) {
+        if (entry.isDirectory) {
+          const childRel = relPath ? `${relPath}/${entry.name}` : entry.name;
+          const children = await scanDir(childRel);
+          folders.push({
+            name: entry.name,
+            isDir: true,
+            children
+          });
+        } else {
+          const ext = entry.name.split('.').pop().toLowerCase();
+          if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
+            files.push({
+              name: entry.name,
+              isDir: false,
+              path: relPath ? `${relPath}/${entry.name}` : entry.name
+            });
+          }
+        }
+      }
+      return [...folders, ...files];
+    };
+    
+    return scanDir('');
+  }
+
+  async getBackgroundFavorites() {
+    const filePath = `${this.workspaceDirName}/templates/background-favorites.json`;
+    try {
+      const { readTextFile } = await import('@tauri-apps/plugin-fs');
+      const content = await readTextFile(filePath, this.basePathObj);
+      const json = JSON.parse(content);
+      return json.favorites || [];
+    } catch {
+      return [];
+    }
+  }
+
+  async toggleBackgroundFavorite(relPath) {
+    const favs = await this.getBackgroundFavorites();
+    const idx = favs.indexOf(relPath);
+    if (idx !== -1) {
+      favs.splice(idx, 1);
+    } else {
+      favs.push(relPath);
+    }
+    const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+    await writeTextFile(`${this.workspaceDirName}/templates/background-favorites.json`, JSON.stringify({favorites: favs}, null, 2), this.basePathObj);
+    return favs;
   }
 
   async resolveAssetUrl(boardId, relativeSrc) {

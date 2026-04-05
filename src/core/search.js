@@ -23,6 +23,7 @@ export class SearchEngine {
 
     // Search Notes
     for (const [id, note] of state.notes.entries()) {
+      if (note.type === 'background-image') continue;
       let typeStr = note.type === 'calc' ? 'calc' : 'note';
       if (note.type === 'image' || note.isImage || (note.type === 'linked-note' && note.snapshot?.kind === 'image')) typeStr = 'image';
       
@@ -223,7 +224,7 @@ export class SearchEngine {
         
         if (state.notes && Array.isArray(state.notes)) {
           state.notes.forEach(([id, note]) => {
-            if (!note) return;
+            if (!note || note.type === 'background-image') return;
             const isImg = note.type === 'image' || note.isImage || (note.type === 'linked-note' && note.snapshot?.kind === 'image');
             
             let searchableText = '';

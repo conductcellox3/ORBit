@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "folders": [
+    {
+      "name": "01_Meeting",
+      "files": [
+        "01_Meeting_Agenda_4Block.png",
+        "02_Meeting_Minutes_Canvas.png",
+        "03_OneOnOne_Talk_Map.png",
+        "04_KPT_Retrospective.png",
+        "05_Decision_Review_Sheet.png"
+      ]
+    },
+    {
+      "name": "02_Business_Frameworks",
+      "files": [
+        "01_SWOT_Matrix.png",
+        "02_ThreeC_Analysis.png",
+        "03_FourP_Framework.png",
+        "04_STP_Map.png",
+        "05_Customer_Value_Map.png"
+      ]
+    },
+    {
+      "name": "03_Brainstorm",
+      "files": [
+        "01_Radial_Idea_Map.png",
+        "02_NineGrid_Ideation.png",
+        "03_Angle_Cross_Matrix.png",
+        "04_Crazy8_Ideation.png",
+        "05_Diverge_Converge_Canvas.png"
+      ]
+    },
+    {
+      "name": "04_Thinking_Organize",
+      "files": [
+        "01_Issue_Tree.png",
+        "02_Cause_Effect_Map.png",
+        "03_Priority_Matrix.png",
+        "04_Fact_Emotion_Interpretation_Action.png",
+        "05_Opinion_Organize_Canvas.png"
+      ]
+    },
+    {
+      "name": "05_Study_Research",
+      "files": [
+        "01_Reading_Note_Sheet.png",
+        "02_Source_Comparison_Matrix.png",
+        "03_Timeline_Research.png",
+        "04_Hypothesis_Test_Canvas.png",
+        "05_Learning_Integration_Map.png"
+      ]
+    }
+  ]
+}

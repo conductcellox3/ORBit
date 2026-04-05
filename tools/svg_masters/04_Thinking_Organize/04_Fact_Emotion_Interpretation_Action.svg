@@ -1,0 +1,38 @@
+
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Noto+Sans+JP:wght@400;500;700&amp;display=swap');
+  text { font-family: 'Inter', 'Noto Sans JP', sans-serif; fill: #4b5563; }
+  .title { font-size: 32px; font-weight: 700; fill: #9ca3af; }
+  .heading { font-size: 40px; font-weight: 600; fill: #6b7280; letter-spacing: 0.1em; }
+  .label { font-size: 24px; font-weight: 500; fill: #9ca3af; }
+  .small { font-size: 16px; fill: #d1d5db; }
+  
+  .bg { fill: #f9fafb; }
+  .box { fill: none; stroke: #e5e7eb; stroke-width: 2; rx: 16; }
+  .box-fill { fill: #ffffff; stroke: #e5e7eb; stroke-width: 2; rx: 16; }
+  .line { stroke: #e5e7eb; stroke-width: 2; }
+  .dashed { stroke: #e5e7eb; stroke-width: 2; stroke-dasharray: 12 12; }
+  .arrow { fill: none; stroke: #e5e7eb; stroke-width: 4; marker-end: url(#arrowhead); }
+</style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#e5e7eb" />
+    </marker>
+  </defs>
+  <rect class="bg" width="1920" height="1080" />
+  <text x="60" y="80" class="title">もやもや整理</text>
+  
+  <rect x="100" y="150" width="400" height="830" class="box-fill" />
+  <text x="140" y="210" class="heading">事実</text>
+
+  <rect x="540" y="150" width="400" height="830" class="box-fill" />
+  <text x="580" y="210" class="heading">感情</text>
+
+  <rect x="980" y="150" width="400" height="830" class="box-fill" />
+  <text x="1020" y="210" class="heading">解釈</text>
+
+  <rect x="1420" y="150" width="400" height="830" class="box-fill" />
+  <text x="1460" y="210" class="heading">次の一歩</text>
+
+</svg>

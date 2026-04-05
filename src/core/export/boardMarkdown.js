@@ -112,7 +112,7 @@ export class BoardMarkdown {
         }
 
         const frameMap = new Map(state.frames?.entries() || []);
-        const noteMap = new Map(state.notes?.entries() || []);
+        const noteMap = new Map(Array.from(state.notes?.entries() || []).filter(([k,v]) => v.type !== 'background-image'));
         const noteToFrame = this.assignNotesToFrames(state);
         
         const frameGroups = new Map();
@@ -195,7 +195,7 @@ export class BoardMarkdown {
             md += `<!-- EXPORT_META: {"sourceType": "${state.sourceType}", "zoom": ${state.canvas?.zoom || 1}, "pan": [${state.canvas?.panX || 0}, ${state.canvas?.panY || 0}]} -->\n\n`;
         }
 
-        const noteMap = new Map(state.notes?.entries() || []);
+        const noteMap = new Map(Array.from(state.notes?.entries() || []).filter(([k,v]) => v.type !== 'background-image'));
         const edges = Array.from(state.edges?.values() || []);
         
         const adjOut = new Map();

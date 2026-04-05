@@ -25,7 +25,7 @@ export class BoardEvents {
       e.preventDefault();
       e.stopPropagation();
 
-      const noteEl = e.target.closest('.orbit-note');
+      const noteEl = e.target.closest('.orbit-note, .orbit-background-image');
       const frameEl = e.target.closest('.orbit-frame');
       
       let targetId = null;
@@ -43,6 +43,32 @@ export class BoardEvents {
         if (!this.app.selection.selectedIds.has(targetId) || this.app.selection.type !== targetType) {
           this.app.selection.clear();
           this.app.selection.select(targetId, targetType);
+        }
+      }
+
+      if (targetType === 'note') {
+        const checkNote = this.app.state.notes.get(targetId);
+        if (checkNote && checkNote.type === 'background-image') {
+          const bgItems = [];
+          bgItems.push({
+            label: checkNote.locked ? 'Unlock Background' : 'Lock Background',
+            onClick: () => {
+              checkNote.locked = !checkNote.locked;
+              this.app.state.notify();
+              this.app.commitHistory();
+            }
+          });
+          bgItems.push({ type: 'separator' });
+          bgItems.push({
+            label: 'Delete Background',
+            onClick: () => {
+              this.app.state.deleteNode(targetId);
+              this.app.selection.clear();
+              this.app.commitHistory();
+            }
+          });
+          ContextMenu.show(e.clientX, e.clientY, bgItems);
+          return;
         }
       }
 
@@ -430,7 +456,17 @@ export class BoardEvents {
       // Right-click check for context menus
       if (e.button === 2) return;
 
+      let isCanvasBg = false;
       if (e.target.id === 'canvas-container' || e.target.id === 'edge-layer') {
+        isCanvasBg = true;
+      } else {
+        const bgEl = e.target.closest('.orbit-background-image');
+        if (bgEl && bgEl.classList.contains('is-locked')) {
+          isCanvasBg = true;
+        }
+      }
+
+      if (isCanvasBg) {
         if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
           this.app.selection.clear();
         }
@@ -545,7 +581,17 @@ export class BoardEvents {
     });
 
     container.addEventListener('dblclick', (e) => {
+      let isCanvasBg = false;
       if (e.target.id === 'canvas-container' || e.target.id === 'edge-layer') {
+        isCanvasBg = true;
+      } else {
+        const bgEl = e.target.closest('.orbit-background-image');
+        if (bgEl && bgEl.classList.contains('is-locked')) {
+          isCanvasBg = true;
+        }
+      }
+      
+      if (isCanvasBg) {
         const coords = this.canvas.viewport.screenToCanvas(e.clientX, e.clientY);
         this.app.createAndFocusNote(coords.x - 60, coords.y - 20, '');
       }

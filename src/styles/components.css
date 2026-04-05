@@ -1,3 +1,25 @@
+.orbit-background-image {
+  position: absolute;
+  /* Visual layer handled by DOM order, so z-index is minimal/neutral */
+  z-index: 0; 
+  cursor: default;
+  transition: transform 0.1s ease;
+  transform-origin: top left;
+  /* Allow selection outlines explicitly since it has no background color */
+}
+
+.orbit-background-image.is-selected {
+  outline: 1.5px solid var(--color-interactive-primary, #3B82F6);
+  outline-offset: -1px;
+}
+
+.orbit-background-image.is-locked {
+  /* Let JS handle ignoring pointer interactions so context menu still works */
+}
+/* But if we need to select locked items, .is-locked could limit pointer-events to handle/img only */
+/* Actually, let's keep pointer-events active to allow context menu and selection, 
+   but we'll check note.locked in JS to block drag/resize */
+
 .orbit-note {
   position: absolute;
   width: auto;

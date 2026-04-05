@@ -14,13 +14,15 @@ export class NoteRenderer {
     const isNoteSelection = this.app.selection.type === 'note';
 
     for (const [id, el] of this.elements.entries()) {
-      if (!notes.has(id)) {
+      if (!notes.has(id) || (notes.has(id) && notes.get(id).type === 'background-image')) {
         el.remove();
         this.elements.delete(id);
       }
     }
 
     for (const [id, note] of notes.entries()) {
+      if (note.type === 'background-image') continue;
+      
       let el = this.elements.get(id);
       if (!el) {
         el = this.createNodeElement(note);
