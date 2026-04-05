@@ -5,6 +5,10 @@ import { Persistence } from './persistence.js';
 
 import { workspaceManager } from './workspace.js';
 import { GraphModel } from './graphModel.js';
+import { appSettings } from './settings.js';
+import { showToast } from '../shell/toast.js';
+import { getTodayString, getIsoWeekString } from '../utils/dateHelper.js';
+
 
 export class App {
   constructor() {
@@ -87,6 +91,59 @@ export class App {
     if (this.onBoardLoad) this.onBoardLoad(this.state.canvas);
     
     this.state.checkLinkedNotesForUpdates();
+  }
+
+  async _openOrCreateSpecialBoard(folderId, title, topic) {
+    if (this.isCreatingSpecialBoard) return;
+    if (!folderId) {
+      showToast('保存先フォルダが設定されていません');
+      if (this.settingsPanel && !this.settingsPanel.isOpen) {
+        this.settingsPanel.toggle();
+      }
+      return;
+    }
+    
+    // Check if the folder actually exists in manifest to prevent orphaned writes
+    if (!workspaceManager.manifest || !workspaceManager.manifest.folders.some(f => f.id === folderId)) {
+      showToast('設定されたフォルダが存在しません。再設定してください');
+      return;
+    }
+
+    this.isCreatingSpecialBoard = true;
+    try {
+      let targetBoard = workspaceManager.findNativeBoardByTitleInFolder(folderId, title);
+      
+      if (!targetBoard) {
+        // Does not exist, create it natively
+        targetBoard = await workspaceManager.createNativeBoard({ title, topic, folderId });
+      }
+
+      if (targetBoard) {
+        await this.loadNativeBoard(targetBoard.id);
+        
+        // Re-render Explorer to show the newly created board in the tree
+        if (this.shell && this.shell.explorer) {
+            await this.shell.explorer.mount();
+            if (typeof this.shell.explorer.expandFolder === 'function') {
+                this.shell.explorer.expandFolder(folderId);
+            }
+        }
+      }
+    } finally {
+      this.isCreatingSpecialBoard = false;
+    }
+  }
+
+  async openOrCreateDailyBoard() {
+    const folderId = appSettings.getDailyFolderId();
+    const title = getTodayString();
+    await this._openOrCreateSpecialBoard(folderId, title, '日報');
+  }
+
+  async openOrCreateWeeklyBoard() {
+    const folderId = appSettings.getWeeklyFolderId();
+    const title = getIsoWeekString();
+    await this._openOrCreateSpecialBoard(folderId, title, '週報');
   }
 
   async openGraphTab() {

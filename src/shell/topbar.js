@@ -106,6 +106,32 @@ export class TopbarManager {
            this.app.backgroundMenu.toggle(e.currentTarget);
        }
     };
+    const leftIdentity = document.getElementById('top-left-identity');
+    if (leftIdentity) {
+        leftIdentity.innerHTML = '';
+        leftIdentity.style.display = 'flex';
+        leftIdentity.style.gap = '8px';
+        leftIdentity.style.alignItems = 'center';
+
+        const dailyBtn = document.createElement('button');
+        dailyBtn.className = 'utility-button clickable';
+        dailyBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><rect x="8" y="14" width="2" height="2"></rect></svg>`;
+        dailyBtn.title = 'Open or Create Daily Board';
+        dailyBtn.onclick = () => {
+            if (this.app.openOrCreateDailyBoard) this.app.openOrCreateDailyBoard();
+        };
+
+        const weeklyBtn = document.createElement('button');
+        weeklyBtn.className = 'utility-button clickable';
+        weeklyBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><rect x="8" y="14" width="8" height="2"></rect></svg>`;
+        weeklyBtn.title = 'Open or Create Weekly Board';
+        weeklyBtn.onclick = () => {
+            if (this.app.openOrCreateWeeklyBoard) this.app.openOrCreateWeeklyBoard();
+        };
+
+        leftIdentity.appendChild(dailyBtn);
+        leftIdentity.appendChild(weeklyBtn);
+    }
 
     this.element.appendChild(bgBtn);
     this.element.appendChild(arrangeBtn);

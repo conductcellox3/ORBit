@@ -4,5 +4,19 @@ export const appSettings = {
     },
     setShowLegacyArchive(val) {
         localStorage.setItem('orbit_show_legacy_archive', val === true ? 'true' : 'false');
+    },
+    getDailyFolderId() {
+        return localStorage.getItem('orbit_daily_board_folder_id') || null;
+    },
+    setDailyFolderId(val) {
+        if (!val) localStorage.removeItem('orbit_daily_board_folder_id');
+        else localStorage.setItem('orbit_daily_board_folder_id', val);
+    },
+    getWeeklyFolderId() {
+        return localStorage.getItem('orbit_weekly_board_folder_id') || null;
+    },
+    setWeeklyFolderId(val) {
+        if (!val) localStorage.removeItem('orbit_weekly_board_folder_id');
+        else localStorage.setItem('orbit_weekly_board_folder_id', val);
     }
 };

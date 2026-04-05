@@ -236,6 +236,18 @@ export class NativeWorkspaceManager {
     if (this.onManifestUpdated) this.onManifestUpdated();
   }
 
+  findNativeBoardByTitleInFolder(folderId, title) {
+    if (!this.manifest) return null;
+    return this.manifest.boards.find(b => 
+      b.folderId === folderId &&
+      b.title === title
+    );
+  }
+
+  async createNativeBoard({ title, topic, folderId }) {
+    return this.createBoard(title, topic, folderId);
+  }
+
   async createBoard(title = "Untitled Board", topic = "", folderId = null) {
     if (!this.manifest) await this.init();
 

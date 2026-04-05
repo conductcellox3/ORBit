@@ -1,5 +1,6 @@
 import { appSettings } from '../core/settings.js';
 import { ImportLegacyBoardDialog } from './importLegacyBoardDialog.js';
+import { workspaceManager } from '../core/workspace.js';
 
 export class SettingsPanel {
     constructor(app, elementId) {
@@ -99,6 +100,73 @@ export class SettingsPanel {
         
         body.appendChild(legacyRow);
 
+        // Daily Workflow Section
+        const dailyHeader = document.createElement('div');
+        dailyHeader.style.marginTop = '8px';
+        dailyHeader.style.paddingTop = '16px';
+        dailyHeader.style.borderTop = '1px solid var(--border-color)';
+        dailyHeader.style.fontWeight = '500';
+        dailyHeader.style.fontSize = '12px';
+        dailyHeader.style.color = 'var(--color-text-main)';
+        dailyHeader.textContent = 'Daily Workflow';
+        body.appendChild(dailyHeader);
+
+        const createSelectRow = (labelStr, getter, setter) => {
+            const row = document.createElement('div');
+            row.style.display = 'flex';
+            row.style.flexDirection = 'column';
+            row.style.gap = '4px';
+
+            const label = document.createElement('label');
+            label.textContent = labelStr;
+            label.style.fontSize = '12px';
+            label.style.color = 'var(--color-text-main)';
+
+            const select = document.createElement('select');
+            select.style.padding = '4px';
+            select.style.fontSize = '12px';
+            select.style.borderRadius = '4px';
+            select.style.border = '1px solid var(--border-color)';
+            select.style.backgroundColor = 'var(--bg-layer-1, #f9f9f9)';
+            select.style.color = 'var(--color-text-main)';
+            select.style.outline = 'none';
+
+            const buildOptions = () => {
+                const folders = workspaceManager.getFolders();
+
+                let html = `<option value="">-- Unset --</option>`;
+                const currentId = getter();
+                let isStale = currentId ? true : false;
+
+                folders.forEach(f => {
+                    if (f.id === currentId) isStale = false;
+                    html += `<option value="${f.id}" ${f.id === currentId ? 'selected' : ''}>${f.name}</option>`;
+                });
+
+                if (isStale) {
+                    html += `<option value="${currentId}" selected style="color:#d9534f;">Missing Folder (Needs Reset)</option>`;
+                }
+                select.innerHTML = html;
+            };
+
+            buildOptions();
+
+            select.addEventListener('change', (e) => {
+                setter(e.target.value);
+            });
+
+            row.appendChild(label);
+            row.appendChild(select);
+            return { row, select, buildOptions };
+        };
+
+        const dailyCfg = createSelectRow('Daily Board Folder', appSettings.getDailyFolderId, appSettings.setDailyFolderId);
+        const weeklyCfg = createSelectRow('Weekly Board Folder', appSettings.getWeeklyFolderId, appSettings.setWeeklyFolderId);
+
+        body.appendChild(dailyCfg.row);
+        body.appendChild(weeklyCfg.row);
+        this._selects = [dailyCfg, weeklyCfg];
+
         // Developer Menu Section
         const devHeader = document.createElement('div');
         devHeader.style.marginTop = '16px';
@@ -156,6 +224,10 @@ export class SettingsPanel {
         const toggleCheckbox = this.element.querySelector('#toggle-legacy-archive');
         if (toggleCheckbox) {
             toggleCheckbox.checked = appSettings.getShowLegacyArchive();
+        }
+
+        if (this._selects) {
+            this._selects.forEach(cfg => cfg.buildOptions());
         }
 
         this.element.style.display = 'block';
