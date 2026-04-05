@@ -1,3 +1,6 @@
+import { ContextMenu } from './contextMenu.js';
+import * as layoutCommands from '../core/layoutCommands.js';
+
 export class TopbarManager {
   constructor(elementId, app) {
     this.element = document.getElementById(elementId);
@@ -48,6 +51,49 @@ export class TopbarManager {
        }
     };
 
+    const arrangeBtn = document.createElement('button');
+    arrangeBtn.className = 'utility-button clickable';
+    // Layout template icon
+    arrangeBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>`;
+    arrangeBtn.title = 'Arrange';
+    arrangeBtn.onclick = (e) => {
+       const rect = arrangeBtn.getBoundingClientRect();
+       
+       let eligibleCount = 0;
+       for (const id of this.app.selection.selectedIds) {
+         if (this.app.state.notes.has(id)) {
+           const entity = this.app.state.notes.get(id);
+           if (layoutCommands.isLayoutEligibleEntity(entity)) {
+             eligibleCount++;
+           }
+         }
+       }
+
+       const isWriteable = this.app.state.sourceType === 'native';
+       const alignDisabled = !isWriteable || eligibleCount < 2;
+       const distDisabled = !isWriteable || eligibleCount < 3;
+
+       const items = [
+         { label: 'Align Left', disabled: alignDisabled, onClick: () => layoutCommands.alignLeft(this.app) },
+         { label: 'Align Center', disabled: alignDisabled, onClick: () => layoutCommands.alignCenter(this.app) },
+         { label: 'Align Right', disabled: alignDisabled, onClick: () => layoutCommands.alignRight(this.app) },
+         { type: 'separator' },
+         { label: 'Align Top', disabled: alignDisabled, onClick: () => layoutCommands.alignTop(this.app) },
+         { label: 'Align Middle', disabled: alignDisabled, onClick: () => layoutCommands.alignMiddle(this.app) },
+         { label: 'Align Bottom', disabled: alignDisabled, onClick: () => layoutCommands.alignBottom(this.app) },
+         { type: 'separator' },
+         { label: 'Distribute Horizontally', disabled: distDisabled, onClick: () => layoutCommands.distributeHorizontally(this.app) },
+         { label: 'Distribute Vertically', disabled: distDisabled, onClick: () => layoutCommands.distributeVertically(this.app) },
+         { type: 'separator' },
+         { label: 'Same Width', disabled: alignDisabled, onClick: () => layoutCommands.sameWidth(this.app) },
+         { label: 'Same Height', disabled: alignDisabled, onClick: () => layoutCommands.sameHeight(this.app) },
+         { label: 'Same Size', disabled: alignDisabled, onClick: () => layoutCommands.sameSize(this.app) }
+       ];
+       
+       ContextMenu.show(rect.left, rect.bottom + 4, items);
+    };
+
+    this.element.appendChild(arrangeBtn);
     this.element.appendChild(exportBtn);
     this.element.appendChild(graphBtn);
     this.element.appendChild(searchBtn);

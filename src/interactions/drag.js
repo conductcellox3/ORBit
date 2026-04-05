@@ -8,6 +8,7 @@ export class DragInteraction {
     this.startY = 0;
     this.initPositions = new Map();
     this.moved = false;
+    this.activeDropTargetFrameId = null;
   }
 
   handlePointerDown(type, id, e) {
@@ -59,6 +60,7 @@ export class DragInteraction {
     this.startY = e.clientY;
     this.initPositions.clear();
     this.moved = false;
+    this.activeDropTargetFrameId = null;
 
     for (const selectedId of this.app.selection.selectedIds) {
       const obj = type === 'note' ? this.app.state.notes.get(selectedId) : this.app.state.frames.get(selectedId);
@@ -95,6 +97,51 @@ export class DragInteraction {
           this.app.state.moveFrame(id, newX, newY);
         }
       }
+      
+      // Hover Drop Target logic for Notes
+      if (this.draggingType === 'note' && this.app.selection.selectedIds.size > 0) {
+        const pointerCanvas = this.canvas.viewport.screenToCanvas(e.clientX, e.clientY);
+        let hoveredFrameId = null;
+        
+        for (const [fId, frame] of this.app.state.frames.entries()) {
+          // Exclude collapsed frames from drop target
+          if (frame.isCollapsed) continue;
+          
+          if (pointerCanvas.x >= frame.x && pointerCanvas.x <= frame.x + frame.width &&
+              pointerCanvas.y >= frame.y && pointerCanvas.y <= frame.y + frame.height) {
+            hoveredFrameId = fId;
+            // Break early just to get any intersecting frame
+            break;
+          }
+        }
+        
+        if (hoveredFrameId !== this.activeDropTargetFrameId) {
+          if (this.activeDropTargetFrameId) {
+            const oldTarget = document.querySelector(`[data-id="${this.activeDropTargetFrameId}"]`);
+            if (oldTarget) oldTarget.classList.remove('is-drop-target');
+          }
+          if (hoveredFrameId) {
+            const newTarget = document.querySelector(`[data-id="${hoveredFrameId}"]`);
+            if (newTarget) newTarget.classList.add('is-drop-target');
+          }
+          this.activeDropTargetFrameId = hoveredFrameId;
+        }
+
+        // Apply visual separation feedback to dragging notes
+        for (const id of this.app.selection.selectedIds) {
+          const note = this.app.state.notes.get(id);
+          if (note && note.parentFrameId) {
+            const el = document.querySelector(`[data-id="${id}"]`);
+            if (el) {
+              if (hoveredFrameId === null) {
+                el.classList.add('is-detaching-from-frame');
+              } else {
+                el.classList.remove('is-detaching-from-frame');
+              }
+            }
+          }
+        }
+      }
     }
   }
 
@@ -116,12 +163,42 @@ export class DragInteraction {
       }
 
       if (this.moved) {
+        if (this.draggingType === 'note') {
+          if (this.activeDropTargetFrameId) {
+            // Drop onto a frame -> reparent
+            for (const id of this.initPositions.keys()) {
+              this.app.state.addNoteToFrame(id, this.activeDropTargetFrameId);
+            }
+          } else {
+            // Dropped onto empty canvas -> DETACH
+            for (const id of this.initPositions.keys()) {
+              const note = this.app.state.notes.get(id);
+              if (note && note.parentFrameId) {
+                this.app.state.removeNoteFromFrame(id);
+              }
+            }
+          }
+        }
         this.app.commitHistory();
+      }
+
+      // Cleanup CSS classes
+      if (this.draggingType === 'note') {
+        for (const id of this.initPositions.keys()) {
+          const el = document.querySelector(`[data-id="${id}"]`);
+          if (el) el.classList.remove('is-detaching-from-frame');
+        }
+      }
+
+      if (this.activeDropTargetFrameId) {
+        const dropEl = document.querySelector(`[data-id="${this.activeDropTargetFrameId}"]`);
+        if (dropEl) dropEl.classList.remove('is-drop-target');
       }
 
       this.draggingType = null;
       this.initPositions.clear();
       this.moved = false;
+      this.activeDropTargetFrameId = null;
     }
   }
 }

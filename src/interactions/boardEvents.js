@@ -62,7 +62,85 @@ export class BoardEvents {
         });
       }
 
+      if (targetType === 'frame' && this.app.selection.selectedIds.size === 1) {
+        items.push({
+          label: 'New Note in Frame',
+          onClick: () => {
+             const frameId = targetId;
+             const frame = this.app.state.frames.get(frameId);
+             if (frame) {
+               if (frame.isCollapsed) {
+                 frame.isCollapsed = false;
+                 // Re-calculate size if needed for visual feedback
+                 if (frame.childIds) {
+                   let maxH = 100;
+                   for(const cid of frame.childIds) {
+                      const cnote = this.app.state.notes.get(cid);
+                      if (cnote) {
+                         const nH = cnote.y + (cnote.height || 56) + 32;
+                         if (nH > maxH) maxH = nH;
+                      }
+                   }
+                   frame.height = Math.max(frame.height || 400, maxH - frame.y);
+                 }
+               }
+
+               // Light staggered placement inside the frame
+               const offset = (frame.childIds ? frame.childIds.length : 0) * 8;
+               const pad = 24;
+               const nx = frame.x + pad + offset;
+               const ny = frame.y + pad + 32 + offset; // 32px below header
+               
+               const noteId = this.app.state.addNote(nx, ny, '');
+               this.app.state.addNoteToFrame(noteId, frameId);
+               
+               this.app.pendingFocusNoteId = noteId;
+               this.app.selection.clear();
+               this.app.selection.select(noteId, 'note');
+               this.app.commitHistory();
+             }
+          }
+        });
+      }
+
+      if (targetType === 'note') {
+        let allHaveParents = true;
+        for (const id of this.app.selection.selectedIds) {
+           const note = this.app.state.notes.get(id);
+           if (!note || !note.parentFrameId) {
+              allHaveParents = false;
+              break;
+           }
+        }
+        if (allHaveParents && this.app.selection.selectedIds.size > 0) {
+           items.push({
+             label: 'Remove from Frame',
+             onClick: () => {
+               for (const id of this.app.selection.selectedIds) {
+                 this.app.state.removeNoteFromFrame(id);
+               }
+               this.app.commitHistory();
+             }
+           });
+           items.push({ type: 'separator' });
+        }
+      }
+
       if (!targetId) {
+        items.push({
+          label: 'Create Frame Here',
+          onClick: () => {
+            const pt = this.canvas.viewport.screenToCanvas(e.clientX, e.clientY);
+            // Default size is 400x300, offset by half so the cursor is exactly at center
+            const newFrameId = this.app.state.addFrame(pt.x - 200, pt.y - 150, 'New Frame', 400, 300);
+            if (newFrameId) {
+              this.app.selection.clear();
+              this.app.selection.select(newFrameId, 'frame');
+              this.app.commitHistory();
+            }
+          }
+        });
+
         const payload = this.app.clipboard?.linkPayload;
         if (payload) {
           items.push({
@@ -582,6 +660,22 @@ export class BoardEvents {
         } else if (e.key.toLowerCase() === 'z') {
           this.app.undo();
           e.preventDefault();
+        } else if (e.key.toLowerCase() === 'c') {
+          if (!this.app.isTextEditingContext() && this.app.selection.selectedIds.size > 0) {
+            this.app.getClipboardData(this.app.selection.selectedIds);
+            e.preventDefault();
+          }
+        } else if (e.key.toLowerCase() === 'v') {
+          if (!this.app.isTextEditingContext() && this.app.clipboard.objects) {
+            let canvasX, canvasY;
+            if (this.lastCursorScreenX !== null && this.lastCursorScreenY !== null) {
+              const pt = this.canvas.viewport.screenToCanvas(this.lastCursorScreenX, this.lastCursorScreenY);
+              canvasX = pt.x;
+              canvasY = pt.y;
+            }
+            this.app.pasteClipboardData(canvasX, canvasY);
+            e.preventDefault();
+          }
         }
       }
       

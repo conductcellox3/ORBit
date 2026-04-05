@@ -12,6 +12,7 @@ export class App {
     this.history = new History(this.state);
     this.selection = new Selection();
     this.persistence = new Persistence(this.state, this.history);
+    this.clipboard = { objects: null, pasteCount: 0, lastPasteAnchor: null, linkPayload: null };
     this.pendingFocusNoteId = null;
     this.activePeek = null;
     this.graphModel = new GraphModel(this);
@@ -298,6 +299,196 @@ export class App {
     this.selection.select(newNoteId, 'note');
     this.commitHistory();
     return newNoteId;
+  }
+
+  isTextEditingContext() {
+    const active = document.activeElement;
+    if (!active) return false;
+    
+    // Explicit exclusions that hold focus
+    if (active.hasAttribute('data-prevent-canvas-shortcuts')) return true;
+    
+    const tag = active.tagName.toUpperCase();
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || active.isContentEditable) {
+      return true;
+    }
+    
+    // Search UI and Properties Panel are text editing contexts
+    if (active.closest('.orbit-search-overlay')) return true;
+    if (active.closest('.orbit-properties')) return true;
+    
+    return false;
+  }
+
+  getClipboardData(selectedIds) {
+    if (this.state.sourceType === 'legacy' || !selectedIds || selectedIds.size === 0) return;
+    
+    const payload = {
+      notes: [],
+      frames: [],
+      edges: []
+    };
+    
+    const eligibleTypes = ['note', 'calc', 'image', 'linked-note'];
+    const collectedIds = new Set();
+    const frameSelectedIds = new Set(); // Track explicitly selected frames
+
+    const collectNote = (id) => {
+      const note = this.state.notes.get(id);
+      if (note && eligibleTypes.includes(note.type || 'note')) {
+        if (!collectedIds.has(id)) {
+          // Deep clone note
+          payload.notes.push(JSON.parse(JSON.stringify(note)));
+          collectedIds.add(id);
+        }
+      }
+    };
+
+    // First pass: collect explicitly selected entities
+    for (const id of selectedIds) {
+      if (this.state.frames.has(id)) {
+        const frame = this.state.frames.get(id);
+        payload.frames.push(JSON.parse(JSON.stringify(frame)));
+        collectedIds.add(id);
+        frameSelectedIds.add(id);
+        
+        // Recursively collect frame children implicitly
+        if (frame.childIds) {
+          for (const childId of frame.childIds) {
+            collectNote(childId);
+          }
+        }
+      } else {
+        collectNote(id);
+      }
+    }
+    
+    // Strip parentFrameId if the parent frame wasn't explicitly included
+    for (const note of payload.notes) {
+      if (note.parentFrameId && !frameSelectedIds.has(note.parentFrameId)) {
+        note.parentFrameId = null;
+      }
+    }
+
+    // Collect internal edges between anything in collectedIds
+    for (const edge of this.state.edges.values()) {
+      if (collectedIds.has(edge.sourceId) && collectedIds.has(edge.targetId)) {
+        payload.edges.push(JSON.parse(JSON.stringify(edge)));
+      }
+    }
+
+    if (payload.notes.length > 0 || payload.frames.length > 0) {
+      this.clipboard.objects = payload;
+      this.clipboard.pasteCount = 0;
+    }
+  }
+
+  pasteClipboardData(targetX, targetY) {
+    if (this.state.sourceType === 'legacy' || !this.clipboard.objects) return;
+    
+    // Calculate bounds of copied elements to anchor them nicely
+    let minX = Infinity, minY = Infinity;
+    for (const frame of this.clipboard.objects.frames) {
+      if (frame.x < minX) minX = frame.x;
+      if (frame.y < minY) minY = frame.y;
+    }
+    for (const note of this.clipboard.objects.notes) {
+      if (!note.parentFrameId) {
+        if (note.x < minX) minX = note.x;
+        if (note.y < minY) minY = note.y;
+      }
+    }
+    // Fallback if everything was inside frames or bounds failed
+    if (minX === Infinity) { minX = 0; minY = 0; }
+    
+    let offsetX = 32;
+    let offsetY = 32;
+    
+    if (targetX !== undefined && targetY !== undefined) {
+      // If we paste repeatedly without moving mouse much, stack them
+      if (this.clipboard.lastPasteAnchor &&
+          Math.abs(this.clipboard.lastPasteAnchor.x - targetX) < 10 &&
+          Math.abs(this.clipboard.lastPasteAnchor.y - targetY) < 10) {
+        this.clipboard.pasteCount++;
+      } else {
+        this.clipboard.pasteCount = 0;
+        this.clipboard.lastPasteAnchor = { x: targetX, y: targetY };
+      }
+      offsetX = (targetX - minX) + (this.clipboard.pasteCount * 32);
+      offsetY = (targetY - minY) + (this.clipboard.pasteCount * 32);
+    } else {
+      this.clipboard.pasteCount++;
+      offsetX = this.clipboard.pasteCount * 32;
+      offsetY = this.clipboard.pasteCount * 32;
+    }
+    
+    const idMap = new Map();
+    const newSelectedIds = new Set();
+    let containsFrames = false;
+    let containsNotes = false;
+
+    // Reconstruct frames
+    for (const frame of this.clipboard.objects.frames) {
+      const newId = crypto.randomUUID();
+      idMap.set(frame.id, newId);
+      
+      const pastedFrame = {
+        ...frame,
+        id: newId,
+        x: frame.x + offsetX,
+        y: frame.y + offsetY,
+        childIds: [] // Will be populated when notes are recreated
+      };
+      
+      this.state.frames.set(newId, pastedFrame);
+      newSelectedIds.add(newId);
+      containsFrames = true;
+    }
+    
+    // Reconstruct notes
+    for (const note of this.clipboard.objects.notes) {
+      const newId = crypto.randomUUID();
+      idMap.set(note.id, newId);
+      
+      const pastedNote = {
+        ...note,
+        id: newId,
+        x: note.x + offsetX,
+        y: note.y + offsetY,
+        parentFrameId: note.parentFrameId && idMap.has(note.parentFrameId) ? idMap.get(note.parentFrameId) : null
+      };
+
+      if (pastedNote.parentFrameId) {
+        const parentFrame = this.state.frames.get(pastedNote.parentFrameId);
+        if (parentFrame) {
+          parentFrame.childIds.push(newId);
+        }
+      }
+
+      this.state.notes.set(newId, pastedNote);
+      newSelectedIds.add(newId);
+      containsNotes = true;
+    }
+    
+    // Reconstruct internal edges
+    for (const edge of this.clipboard.objects.edges) {
+      if (idMap.has(edge.sourceId) && idMap.has(edge.targetId)) {
+        this.state.addEdge(idMap.get(edge.sourceId), idMap.get(edge.targetId));
+      }
+    }
+
+    if (newSelectedIds.size > 0) {
+      // Safely perform manual bulk selection without single-item clearing
+      this.selection.selectedIds.clear();
+      for (const id of newSelectedIds) {
+        this.selection.selectedIds.add(id);
+      }
+      this.selection.type = containsNotes ? 'note' : 'frame';
+      
+      this.state.notify();
+      this.selection.notify();
+      this.commitHistory();
+    }
   }
 
   createNextNoteFromSelection(withEdge = false) {

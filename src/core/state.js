@@ -277,6 +277,41 @@ export class State {
     }
   }
 
+  addNoteToFrame(noteId, frameId) {
+    if (this.sourceType === 'legacy') return;
+    const note = this.notes.get(noteId);
+    const frame = this.frames.get(frameId);
+    if (!note || !frame) return;
+
+    // Remove from old frame if needed
+    if (note.parentFrameId && note.parentFrameId !== frameId) {
+      const oldFrame = this.frames.get(note.parentFrameId);
+      if (oldFrame && oldFrame.childIds) {
+        oldFrame.childIds = oldFrame.childIds.filter(id => id !== noteId);
+      }
+    }
+
+    note.parentFrameId = frameId;
+    if (!frame.childIds) frame.childIds = [];
+    if (!frame.childIds.includes(noteId)) {
+      frame.childIds.push(noteId);
+    }
+    this.notify();
+  }
+
+  removeNoteFromFrame(noteId) {
+    if (this.sourceType === 'legacy') return;
+    const note = this.notes.get(noteId);
+    if (!note || !note.parentFrameId) return;
+
+    const oldFrame = this.frames.get(note.parentFrameId);
+    if (oldFrame && oldFrame.childIds) {
+      oldFrame.childIds = oldFrame.childIds.filter(id => id !== noteId);
+    }
+    note.parentFrameId = null;
+    this.notify();
+  }
+
   moveFrame(id, x, y) {
     const frame = this.frames.get(id);
     if (frame && (frame.x !== x || frame.y !== y)) {

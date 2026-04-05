@@ -110,6 +110,17 @@
   transition: none;
 }
 
+.orbit-frame.is-drop-target {
+  box-shadow: 0 0 0 4px var(--color-interactive-primary, #3B82F6) inset, var(--shadow-hover);
+  background-color: var(--color-interactive-hover-transparent, rgba(59, 130, 246, 0.05));
+}
+
+.orbit-note.is-detaching-from-frame {
+  opacity: 0.7;
+  outline: 2.5px solid #ef4444; /* red warning */
+  outline-offset: 2px;
+}
+
 .orbit-frame-title {
   position: absolute;
   top: -24px;
