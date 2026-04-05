@@ -38,15 +38,21 @@ export class NativeWorkspaceManager {
     }
 
     if (!hasAccess) {
-      this.workspaceDirName = 'workspace';
-      rootOpts = { baseDir: BaseDirectory.Executable };
       try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const { join } = await import('@tauri-apps/api/path');
+        const exeDirStr = await invoke('get_exe_dir');
+        this.workspaceDirName = await join(exeDirStr, 'workspace');
+        rootOpts = { baseDir: undefined };
+        
         if (!(await exists(this.workspaceDirName, rootOpts))) {
           await mkdir(this.workspaceDirName, { ...rootOpts, recursive: true });
         }
         hasAccess = true;
       } catch (e) {
-        console.warn("ExecutableDir workspace creation failed. Falling back to AppLocalData.", e);
+        const { message } = await import('@tauri-apps/plugin-dialog');
+        await message(`EXE Workspace failed: ${e}\nworkspaceDirName: ${this.workspaceDirName}`, { title: 'ORBit Debug', kind: 'error' });
+        this.workspaceDirName = 'workspace';
         rootOpts = { baseDir: BaseDirectory.AppLocalData };
       }
     }

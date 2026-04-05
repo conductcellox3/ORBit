@@ -26,7 +26,13 @@
       "identifier": "fs:scope",
       "allow": [
         {
+          "path": "$EXEDIR/**"
+        },
+        {
           "path": "$EXE/**"
+        },
+        {
+          "path": "$RESOURCE/**"
         },
         {
           "path": "$APPLOCALDATA/**"
