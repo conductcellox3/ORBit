@@ -163,6 +163,11 @@ export class NoteRenderer {
       else delete el.dataset.color;
 
       el.classList.toggle('is-selected', isNoteSelection && this.app.selection.has(id));
+      
+      if (note.type === 'image' || note.isImage) {
+        el.classList.toggle('is-ocr-pending', note.ocrStatus === 'pending');
+        el.classList.toggle('is-ocr-failed', note.ocrStatus === 'failed');
+      }
     }
 
     this.updateBacklinkBadges();

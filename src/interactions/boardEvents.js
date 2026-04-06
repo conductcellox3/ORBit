@@ -271,6 +271,15 @@ export class BoardEvents {
 
         if (hasImage && this.app.selection.selectedIds.size === 1 && !isLinkedNote) {
           items.push({
+            label: 'Run / Refresh OCR',
+            onClick: () => {
+              const n = this.app.state.notes.get(targetId);
+              if (n && n.src) {
+                 this.app.requestOcrForNote(this.app.state.boardId, targetId, n.src);
+              }
+            }
+          });
+          items.push({
             label: 'Edit Caption...',
             onClick: () => {
               this.spawnCaptionInput(targetId);
@@ -810,6 +819,9 @@ export class BoardEvents {
                 this.app.selection.clear();
                 this.app.selection.select(newId, 'note');
                 this.app.commitHistory();
+                
+                // Trigger background OCR
+                this.app.requestOcrForNote(this.app.state.boardId, newId, relativeSrc);
                 
                 // Fast Capture: Immediately prompt for a caption
                 requestAnimationFrame(() => {

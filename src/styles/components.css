@@ -689,3 +689,38 @@ body.is-printing-mode #print-overlay-sandbox {
     background: white;
   }
 }
+
+/* =========================================================================
+   9. OCR UI States (Sprint 23)
+   ========================================================================= */
+
+.orbit-note.is-ocr-pending::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--color-interactive-primary, #3b82f6);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: orbit-spin 1s linear infinite;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.orbit-note.is-ocr-failed::after {
+  content: '!';
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--color-error, #ef4444);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+@keyframes orbit-spin {
+  to { transform: rotate(360deg); }
+}

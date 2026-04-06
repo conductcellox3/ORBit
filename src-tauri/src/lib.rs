@@ -1,5 +1,7 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod capture;
+mod ocr;
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -25,7 +27,8 @@ pub fn run() {
             capture::start_capture_session,
             capture::finish_capture_session,
             capture::cancel_capture_session,
-            capture::fixed_region_capture
+            capture::fixed_region_capture,
+            ocr::run_local_ocr
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -667,6 +667,14 @@ export class PropertiesPanel {
 
         container.appendChild(this.createRow('Size', `${Math.round(note.width || 0)} × ${Math.round(note.height || 0)}`, 'inspect-size'));
         container.appendChild(this.createRow('Source', note.src || 'Unknown', 'inspect-src'));
+        
+        if (note.ocrText) {
+          container.appendChild(this.createRow('OCR Text', note.ocrText, 'inspect-ocr'));
+        } else if (note.ocrStatus === 'pending') {
+          container.appendChild(this.createRow('OCR Text', 'Extracting...', 'inspect-ocr'));
+        } else if (note.ocrStatus === 'failed') {
+          container.appendChild(this.createRow('OCR Text', 'Extraction failed', 'inspect-ocr'));
+        }
 
         const actionsConfig = document.createElement('div');
         actionsConfig.className = 'orbit-properties-group no-label wrap';

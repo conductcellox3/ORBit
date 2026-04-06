@@ -25,7 +25,8 @@ export class SearchEngine {
     for (const [id, note] of state.notes.entries()) {
       if (note.type === 'background-image') continue;
       let typeStr = note.type === 'calc' ? 'calc' : 'note';
-      if (note.type === 'image' || note.isImage || (note.type === 'linked-note' && note.snapshot?.kind === 'image')) typeStr = 'image';
+      const isImg = note.type === 'image' || note.isImage || (note.type === 'linked-note' && note.snapshot?.kind === 'image');
+      if (isImg) typeStr = 'image';
       
       if (!passesFilters(typeStr, note.markers)) continue;
 
@@ -36,27 +37,41 @@ export class SearchEngine {
         searchableText = typeStr === 'image' ? note.caption : note.text;
       }
       
+      let ocrMatched = false;
+      let primaryMatched = false;
+      
       if (!q) {
+        primaryMatched = true;
+      } else {
+        if (searchableText && searchableText.toLowerCase().includes(q)) {
+           primaryMatched = true;
+        } else if (note.ocrText && note.ocrText.toLowerCase().includes(q)) {
+           ocrMatched = true;
+        }
+      }
+
+      if (primaryMatched) {
         results.push({
           type: typeStr,
           id: note.id,
           boardId: state.boardId,
           boardTitle: state.title,
-          matchField: filters.marker !== 'all' ? 'marker' : 'filter',
+          matchField: !q ? (filters.marker !== 'all' ? 'marker' : 'filter') : (typeStr === 'image' ? 'caption' : 'text'),
           matchedMarker: filters.marker !== 'all' ? filters.marker : null,
-          snippet: this.generateSnippet(searchableText || '', ''),
+          snippet: this.generateSnippet(searchableText || '', q),
           sourceType: state.sourceType
         });
-      } else if (searchableText && searchableText.toLowerCase().includes(q)) {
+      } else if (ocrMatched) {
         results.push({
           type: typeStr,
           id: note.id,
           boardId: state.boardId,
           boardTitle: state.title,
-          matchField: typeStr === 'image' ? 'caption' : 'text',
+          matchField: 'ocrText',
           matchedMarker: filters.marker !== 'all' ? filters.marker : null,
-          snippet: this.generateSnippet(searchableText, q),
-          sourceType: state.sourceType
+          snippet: this.generateSnippet(note.ocrText || '', q),
+          sourceType: state.sourceType,
+          isOcr: true
         });
       }
     }
@@ -196,6 +211,19 @@ export class SearchEngine {
             folderName: folderNameStr,
             sourceType: boardEntry.type || 'native'
           });
+        } else if (item.ocrText && item.ocrText.toLowerCase().includes(q)) {
+          results.push({
+            type: item.type,
+            id: item.id,
+            boardId: boardEntry.id,
+            boardTitle: boardEntry.title,
+            matchField: 'ocrText',
+            matchedMarker: filters.marker !== 'all' ? filters.marker : null,
+            snippet: this.generateSnippet(item.ocrText, q),
+            folderName: folderNameStr,
+            sourceType: boardEntry.type || 'native',
+            isOcr: true
+          });
         }
       }
     });
@@ -235,10 +263,12 @@ export class SearchEngine {
             }
 
             if (isImg && searchableText) {
-              items.push({ id: note.id, type: 'image', text: searchableText, matchField: 'caption', markers: note.markers || [] });
+              items.push({ id: note.id, type: 'image', text: searchableText, matchField: 'caption', ocrText: note.ocrText, markers: note.markers || [] });
             } else if (!isImg && searchableText) {
               const typeStr = note.type === 'calc' ? 'calc' : 'note';
               items.push({ id: note.id, type: typeStr, text: searchableText, matchField: 'text', markers: note.markers || [] });
+            } else if (isImg && note.ocrText) {
+              items.push({ id: note.id, type: 'image', text: '', matchField: 'caption', ocrText: note.ocrText, markers: note.markers || [] });
             }
           });
         }

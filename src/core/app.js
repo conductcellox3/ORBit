@@ -280,6 +280,9 @@ export class App {
        this.selection.select(newId, 'note');
        
        this.commitHistory();
+       
+       // Trigger async OCR 
+       this.requestOcrForNote(this.state.boardId, newId, relativeSrc);
   }
 
   async _doInteractiveCapture(isSettingFixedArea) {
@@ -1090,6 +1093,60 @@ export class App {
             }
          }
       }
+    }
+  }
+
+  async requestOcrForNote(boardId, noteId, src) {
+    if (this.state.sourceType === 'legacy' || !src) return;
+    
+    // Generate new request ID
+    const requestId = crypto.randomUUID();
+    const timestamp = Date.now();
+    
+    // Set pending via silent update
+    await this.persistence.silentTargetedOcrUpdate(boardId, noteId, {
+      ocrStatus: 'pending',
+      ocrRequestId: requestId,
+      ocrUpdatedAt: timestamp
+    });
+    this.state.notify();
+
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const { join } = await import('@tauri-apps/api/path');
+      const { workspaceManager } = await import('./workspace.js');
+      
+      const boardAbsPath = await workspaceManager.resolveBoardPath(boardId);
+      const absSrc = await join(boardAbsPath, src);
+      
+      const result = await invoke('run_local_ocr', { imagePath: absSrc });
+      
+      let cleanedText = result.text || '';
+      // Remove spaces between CJK characters and any other characters to fix Windows OCR Japanese spacing
+      if (cleanedText) {
+         cleanedText = cleanedText
+            .replace(/([\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\u3000-\u303F\uFF00-\uFFEF])\s+/gu, '$1')
+            .replace(/\s+([\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\u3000-\u303F\uFF00-\uFFEF])/gu, '$1');
+      }
+
+      await this.persistence.silentTargetedOcrUpdate(boardId, noteId, {
+         ocrStatus: result.status || 'ready',
+         ocrText: cleanedText,
+         ocrRequestId: requestId,
+         ocrUpdatedAt: Date.now()
+      });
+      if (this.state.boardId === boardId) this.state.notify();
+      
+    } catch (e) {
+      console.warn("OCR failed for note", noteId, e);
+      let failedStatus = 'failed';
+      // Fallback empty if path is totally invalid for safety? No, failed icon is fine.
+      await this.persistence.silentTargetedOcrUpdate(boardId, noteId, {
+         ocrStatus: failedStatus,
+         ocrRequestId: requestId,
+         ocrUpdatedAt: Date.now()
+      });
+      if (this.state.boardId === boardId) this.state.notify();
     }
   }
 }

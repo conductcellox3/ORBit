@@ -211,8 +211,15 @@ export class TopbarManager {
             }
         };
 
+        const separator = document.createElement('div');
+        separator.style.width = '1px';
+        separator.style.height = '16px';
+        separator.style.backgroundColor = '#9CA3AF';
+        separator.style.margin = '0 6px';
+
         leftIdentity.appendChild(dailyBtn);
         leftIdentity.appendChild(weeklyBtn);
+        leftIdentity.appendChild(separator);
         leftIdentity.appendChild(chainBtn);
         leftIdentity.appendChild(captureGroup);
     }

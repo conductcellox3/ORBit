@@ -280,6 +280,14 @@ export class SearchUI {
         markerHint.style.fontStyle = 'italic';
         markerHint.textContent = `marker: ${res.matchedMarker} -`;
         snippetEl.appendChild(markerHint);
+      } else if (res.isOcr || res.matchField === 'ocrText') {
+        const ocrBadge = document.createElement('span');
+        ocrBadge.className = 'orbit-search-badge type';
+        ocrBadge.style.marginRight = '4px';
+        ocrBadge.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+        ocrBadge.style.color = '#2563eb';
+        ocrBadge.textContent = 'OCR text:';
+        snippetEl.appendChild(ocrBadge);
       }
       // Simple highlight
       const qLower = this.query.toLowerCase().trim();

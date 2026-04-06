@@ -89,4 +89,42 @@ export class Persistence {
       console.error("Failed to save board data", e);
     }
   }
+  async silentTargetedOcrUpdate(targetBoardId, noteId, ocrData) {
+    if (this.state.sourceType === 'legacy') return;
+
+    if (this.state.boardId === targetBoardId) {
+      const note = this.state.notes.get(noteId);
+      if (note) {
+         // Prevent older requests from overwriting newer manually refreshed requests
+         if (ocrData.ocrRequestId && note.ocrRequestId && note.ocrUpdatedAt) {
+            if (ocrData.ocrUpdatedAt < note.ocrUpdatedAt) return;
+         }
+         Object.assign(note, ocrData);
+         await this.save();
+      }
+    } else {
+      try {
+        const data = await workspaceManager.loadBoardState(targetBoardId);
+        if (data && data.state && data.state.notes) {
+          const noteIndex = data.state.notes.findIndex(n => n[0] === noteId);
+          if (noteIndex !== -1) {
+              const note = data.state.notes[noteIndex][1];
+              if (ocrData.ocrRequestId && note.ocrRequestId && note.ocrUpdatedAt) {
+                 if (ocrData.ocrUpdatedAt < note.ocrUpdatedAt) return;
+              }
+              Object.assign(note, ocrData);
+              
+              const dirName = workspaceManager.getBoardDirName(targetBoardId);
+              const boardDir = `${workspaceManager.workspaceDirName}/boards/${dirName}`;
+              const stringified = JSON.stringify(data.state, null, 2);
+              
+              const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+              await writeTextFile(`${boardDir}/state.json`, stringified, workspaceManager.basePathObj);
+          }
+        }
+      } catch (e) {
+        console.error("Failed silent background OCR save", e);
+      }
+    }
+  }
 }
