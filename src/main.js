@@ -17,6 +17,7 @@ import { BoardSnapshot } from './core/export/boardSnapshot.js';
 import { ExportPanel } from './shell/exportPanel.js';
 import { SettingsPanel } from './shell/settingsPanel.js';
 import { BackgroundMenu } from './ui/backgroundMenu.js';
+import { HelpUI } from './shell/helpUI.js';
 
 async function bootstrap() {
   const app = new App();
@@ -36,6 +37,7 @@ async function bootstrap() {
   app.exportPanel = new ExportPanel(app, 'export-panel');
   app.settingsPanel = new SettingsPanel(app, 'settings-panel');
   app.backgroundMenu = new BackgroundMenu(app);
+  app.shell.helpUI = new HelpUI(app);
   
   // Search toggling is handled natively in app.js
   

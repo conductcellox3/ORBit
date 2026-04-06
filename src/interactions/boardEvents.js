@@ -620,6 +620,15 @@ export class BoardEvents {
     }, { passive: false });
 
     window.addEventListener('keydown', (e) => {
+      // Global Help Toggle
+      if (e.key === 'F1' || (e.key === '?' && !this.app.isTextEditingContext())) {
+        e.preventDefault();
+        if (this.app.shell && this.app.shell.helpUI) {
+           this.app.shell.helpUI.toggle();
+        }
+        return;
+      }
+
       // Capture Flow chaining (Ctrl+Enter / Ctrl+Shift+Enter) allowed even if inside editor
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         if (e.isComposing) return;
@@ -735,6 +744,12 @@ export class BoardEvents {
       }
       
       if (e.key === 'Escape') {
+        if (this.app.shell && this.app.shell.helpUI && this.app.shell.helpUI.isOpen) {
+           this.app.shell.helpUI.close();
+           e.preventDefault();
+           return;
+        }
+
         const tag = document.activeElement ? document.activeElement.tagName : '';
         if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !document.activeElement.isContentEditable) {
            if (this.app.activePeek) {
