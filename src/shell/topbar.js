@@ -129,18 +129,67 @@ export class TopbarManager {
             if (this.app.openOrCreateWeeklyBoard) this.app.openOrCreateWeeklyBoard();
         };
 
+        const captureGroup = document.createElement('div');
+        captureGroup.style.display = 'flex';
+        captureGroup.style.gap = '2px';
+        captureGroup.style.alignItems = 'center';
+
         const captureBtn = document.createElement('button');
         captureBtn.className = 'utility-button clickable';
         // Camera icon
         captureBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>`;
         captureBtn.title = 'Capture Screen Region to Image Note';
         captureBtn.onclick = () => {
-            if (this.app.startCaptureSession) {
+            if (this.app?.startCaptureSession) {
                 this.app.startCaptureSession();
-            } else {
-                console.error("this.app.startCaptureSession is undefined!", this.app);
             }
         };
+
+        const captureMenuBtn = document.createElement('button');
+        captureMenuBtn.className = 'utility-button clickable';
+        captureMenuBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`;
+        captureMenuBtn.title = 'Capture Settings';
+        captureMenuBtn.onclick = (e) => {
+            const rect = captureMenuBtn.getBoundingClientRect();
+            ContextMenu.show(rect.left, rect.bottom + 4, [
+                {
+                    label: 'Capture Interactive Region',
+                    onClick: () => {
+                        this.app?.startCaptureSession(false);
+                    }
+                },
+                {
+                    label: 'Set Custom Area',
+                    onClick: () => {
+                        this.app?.startCaptureSession(true);
+                    }
+                },
+                {
+                    label: 'Clear Fixed Area',
+                    disabled: !this.app?.fixedCaptureRect,
+                    onClick: () => {
+                        if(this.app) this.app.fixedCaptureRect = null;
+                        ContextMenu.hide();
+                    }
+                },
+                { type: 'separator' },
+                {
+                    label: `Auto-Minimize Before Capture: ${this.app?.autoMinimizeCapture ? 'ON' : 'OFF'}`,
+                    keepOpen: true,
+                    onClick: (ev) => {
+                        if(this.app) {
+                            this.app.autoMinimizeCapture = !this.app.autoMinimizeCapture;
+                            localStorage.setItem('orbit_auto_minimize_capture', this.app.autoMinimizeCapture ? 'true' : 'false');
+                        }
+                        ContextMenu.hide();
+                        setTimeout(() => captureMenuBtn.onclick(e), 50);
+                    }
+                }
+            ]);
+        };
+
+        captureGroup.appendChild(captureBtn);
+        captureGroup.appendChild(captureMenuBtn);
         
         const chainBtn = document.createElement('button');
         chainBtn.className = 'utility-button clickable';
@@ -165,7 +214,7 @@ export class TopbarManager {
         leftIdentity.appendChild(dailyBtn);
         leftIdentity.appendChild(weeklyBtn);
         leftIdentity.appendChild(chainBtn);
-        leftIdentity.appendChild(captureBtn);
+        leftIdentity.appendChild(captureGroup);
     }
 
     this.element.appendChild(bgBtn);

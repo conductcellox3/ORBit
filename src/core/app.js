@@ -24,6 +24,8 @@ export class App {
     this.activePeek = null;
     this.isChainCaptureEnabled = false;
     this.lastCaptureNoteId = null;
+    this.fixedCaptureRect = null;
+    this.autoMinimizeCapture = localStorage.getItem('orbit_auto_minimize_capture') === 'true';
     this.graphModel = new GraphModel(this);
     this.isGraphActive = false;
     workspaceManager.onManifestUpdated = () => {
@@ -152,9 +154,136 @@ export class App {
     await this._openOrCreateSpecialBoard(folderId, title, '週報');
   }
 
-  async startCaptureSession() {
+  async executeCapturePipeline(captureTaskFn) {
     if (this.isCaptureActive) return;
     this.isCaptureActive = true;
+    
+    let appWin = null;
+    try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        appWin = getCurrentWindow();
+    } catch(e) {}
+
+    try {
+        if (this.autoMinimizeCapture && appWin) {
+            await appWin.minimize();
+            // Small delay to allow OS animations to finish and content beneath to render
+            await new Promise(r => setTimeout(r, 250));
+        }
+        
+        await captureTaskFn();
+    } catch (e) {
+        showToast(`Capture failed: ${e}`);
+        console.error("Capture failure", e);
+        this.isCaptureActive = false; // reset flag on error so we can try again
+    } finally {
+        if (this.autoMinimizeCapture && appWin) {
+            try {
+                await appWin.unminimize();
+                await appWin.setFocus();
+            } catch(e) {}
+        }
+    }
+  }
+
+  async startCaptureSession(isSettingFixedArea = false) {
+    if (this.fixedCaptureRect && !isSettingFixedArea) {
+         return this.executeCapturePipeline(async () => {
+             await this._doFixedRegionCapture();
+         });
+    } else {
+         return this.executeCapturePipeline(async () => {
+             await this._doInteractiveCapture(isSettingFixedArea);
+         });
+    }
+  }
+
+  async _doFixedRegionCapture() {
+      const now = new Date();
+      const filename = `capture_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}.png`;
+      const { join } = await import('@tauri-apps/api/path');
+      const boardAbsPath = await workspaceManager.resolveBoardPath(this.state.boardId);
+      const relativeSrc = `assets/images/${filename}`;
+      const outPath = await join(boardAbsPath, 'assets', 'images', filename);
+
+      try {
+          // Send absolute boundaries to Rust backend
+          const result = await invoke('fixed_region_capture', {
+              rect: this.fixedCaptureRect,
+              outPathAbs: outPath
+          });
+          
+          const origW = result[1];
+          const origH = result[2];
+          
+          this._finalizeCaptureInsertion(relativeSrc, origW, origH);
+          this.isCaptureActive = false;
+      } catch (err) {
+          if (err && err.toString().includes("BoundsExceeded")) {
+              console.warn("Fixed capture out of bounds. Falling back to interactive.");
+              this.fixedCaptureRect = null;
+              this.isCaptureActive = false;
+              // Re-run the main entry which will now route to interactive
+              return this.startCaptureSession();
+          } else {
+              throw err;
+          }
+      }
+  }
+
+  _finalizeCaptureInsertion(relativeSrc, originalWidth, originalHeight) {
+       const container = document.getElementById('canvas-container');
+       const rect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+       
+       const screenCenterX = rect.left + rect.width / 2;
+       const screenCenterY = rect.top + rect.height / 2;
+       
+       const baseW = originalWidth || 300;
+       const baseH = originalHeight || 200;
+       const maxWidth = 500;
+       const scale = Math.min(1.0, maxWidth / baseW);
+       const calcWidth = Math.round(baseW * scale);
+       const calcHeight = Math.round(baseH * scale);
+       
+       let insertX, insertY;
+       let doChain = false;
+       
+       if (this.isChainCaptureEnabled && this.lastCaptureNoteId) {
+           const prev = this.state.notes.get(this.lastCaptureNoteId);
+           if (prev && (prev.type === 'image' || prev.isImage)) {
+               doChain = true;
+               insertX = prev.x;
+               insertY = prev.y + (prev.height || 200) + 64;
+           }
+       }
+       
+       if (!doChain) {
+           let pt = { x: screenCenterX, y: screenCenterY };
+           if (this.canvas?.viewport?.screenToCanvas) {
+               pt = this.canvas.viewport.screenToCanvas(screenCenterX, screenCenterY);
+           }
+           insertX = pt.x - calcWidth / 2;
+           insertY = pt.y - calcHeight / 2;
+       }
+       
+       const newId = this.state.addImageNote(insertX, insertY, relativeSrc, calcWidth, calcHeight);
+       
+       if (doChain) {
+           this.state.addEdge(this.lastCaptureNoteId, newId);
+       }
+       
+       if (this.isChainCaptureEnabled) {
+           this.lastCaptureNoteId = newId;
+       }
+       
+       this.selection.clear();
+       this.selection.select(newId, 'note');
+       
+       this.commitHistory();
+  }
+
+  async _doInteractiveCapture(isSettingFixedArea) {
+    showToast("Starting capture session...");
     showToast("Starting capture session...");
     try {
       if (!this.captureWin) {
@@ -211,68 +340,23 @@ export class App {
       await this.captureWin.setPosition(new PhysicalPosition(bounds.virtual_bounds.x, bounds.virtual_bounds.y));
       await this.captureWin.setSize(new PhysicalSize(bounds.virtual_bounds.width, bounds.virtual_bounds.height));
       
-      // Listen for window storage update
-      const storageHandler = (e) => {
-        if (e.key === 'orbit_capture_result' && e.newValue) {
-           const res = JSON.parse(e.newValue);
-           if (res.status === 'success') {
-               const container = document.getElementById('canvas-container');
-               const rect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
-               
-               const screenCenterX = rect.left + rect.width / 2;
-               const screenCenterY = rect.top + rect.height / 2;
-               
-               // Dynamic dimensions maintaining aspect ratio (defaulting if malformed)
-               const baseW = res.originalWidth || 300;
-               const baseH = res.originalHeight || 200;
-               const maxWidth = 500; // Increased max width for chain viewing readability
-               const scale = Math.min(1.0, maxWidth / baseW);
-               const calcWidth = Math.round(baseW * scale);
-               const calcHeight = Math.round(baseH * scale);
-               
-               let insertX, insertY;
-               let doChain = false;
-               
-               if (this.isChainCaptureEnabled && this.lastCaptureNoteId) {
-                   const prev = this.state.notes.get(this.lastCaptureNoteId);
-                   // Ensure the prev note still exists and is an image note type
-                   if (prev && (prev.type === 'image' || prev.isImage)) {
-                       doChain = true;
-                       insertX = prev.x;
-                       insertY = prev.y + (prev.height || 200) + 64;
-                   }
-               }
-               
-               if (!doChain) {
-                   let pt = { x: screenCenterX, y: screenCenterY };
-                   if (this.canvas?.viewport?.screenToCanvas) {
-                       pt = this.canvas.viewport.screenToCanvas(screenCenterX, screenCenterY);
-                   }
-                   insertX = pt.x - calcWidth / 2;
-                   insertY = pt.y - calcHeight / 2;
-               }
-               
-               const newId = this.state.addImageNote(insertX, insertY, res.relativeSrc, calcWidth, calcHeight);
-               
-               if (doChain) {
-                   this.state.addEdge(this.lastCaptureNoteId, newId);
-               }
-               
-               if (this.isChainCaptureEnabled) {
-                   this.lastCaptureNoteId = newId;
-               }
-               
-               this.selection.clear();
-               this.selection.select(newId, 'note');
-               
-               this.history.commit();
-           }
-           window.removeEventListener('storage', storageHandler);
-           this.isCaptureActive = false;
-        }
-      };
-      
-      window.addEventListener('storage', storageHandler);
+       // Listen for window storage update
+       const storageHandler = (e) => {
+         if (e.key === 'orbit_capture_result' && e.newValue) {
+            const res = JSON.parse(e.newValue);
+            if (res.status === 'success') {
+                if (isSettingFixedArea || !this.fixedCaptureRect) {
+                    this.fixedCaptureRect = res.selectionRect;
+                }
+                
+                this._finalizeCaptureInsertion(res.relativeSrc, res.originalWidth, res.originalHeight);
+            }
+            window.removeEventListener('storage', storageHandler);
+            this.isCaptureActive = false;
+         }
+       };
+       
+       window.addEventListener('storage', storageHandler);
       
       await this.captureWin.show();
       await this.captureWin.setFocus();

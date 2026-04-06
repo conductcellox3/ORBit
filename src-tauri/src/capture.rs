@@ -95,6 +95,14 @@ pub struct SelectionRect {
     pub height: u32,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct AbsoluteRect {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+}
+
 #[tauri::command]
 pub async fn finish_capture_session(rect: SelectionRect, out_path_abs: String) -> Result<String, String> {
     let temp_dir = std::env::temp_dir();
@@ -130,5 +138,43 @@ pub async fn cancel_capture_session() -> Result<(), String> {
     if temp_path.exists() {
         let _ = fs::remove_file(&temp_path);
     }
+    
+    // Also cleanup bmp variant
+    let temp_path_bmp = temp_dir.join("orbit_temp_screenshot.bmp");
+    if temp_path_bmp.exists() {
+        let _ = fs::remove_file(&temp_path_bmp);
+    }
+    
     Ok(())
+}
+
+#[tauri::command]
+pub async fn fixed_region_capture(rect: AbsoluteRect, out_path_abs: String) -> Result<(String, u32, u32), String> {
+    let (mut image, bounds) = get_desktop_image()?;
+    
+    let buffer_x = rect.x - bounds.x;
+    let buffer_y = rect.y - bounds.y;
+    
+    if buffer_x < 0 || buffer_y < 0 {
+        return Err("BoundsExceeded: Fixed region starts outside the current desktop boundaries.".to_string());
+    }
+    
+    let buffer_x = buffer_x as u32;
+    let buffer_y = buffer_y as u32;
+    
+    if buffer_x + rect.width > bounds.width || buffer_y + rect.height > bounds.height {
+        return Err("BoundsExceeded: Fixed region extends outside the current desktop boundaries.".to_string());
+    }
+    
+    let cropped = image.crop(buffer_x, buffer_y, rect.width, rect.height);
+    
+    let out_path = PathBuf::from(&out_path_abs);
+    if let Some(parent) = out_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("Failed to create asset directory: {}", e))?;
+    }
+    
+    cropped.save_with_format(&out_path, image::ImageFormat::Png)
+        .map_err(|e| format!("Failed to save cropped fixed-region image: {}", e))?;
+        
+    Ok((out_path_abs, rect.width, rect.height))
 }

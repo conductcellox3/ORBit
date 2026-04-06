@@ -157,6 +157,12 @@ container.addEventListener('mouseup', async (e) => {
             relativeSrc: captureInfo.relative_src,
             originalWidth: selectionRect.width,
             originalHeight: selectionRect.height,
+            selectionRect: {
+                x: selectionRect.x + captureInfo.virtual_bounds.x,
+                y: selectionRect.y + captureInfo.virtual_bounds.y,
+                width: selectionRect.width,
+                height: selectionRect.height
+            },
             timestamp: Date.now()
         }));
 

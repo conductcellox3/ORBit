@@ -24,7 +24,8 @@ pub fn run() {
             get_exe_dir,
             capture::start_capture_session,
             capture::finish_capture_session,
-            capture::cancel_capture_session
+            capture::cancel_capture_session,
+            capture::fixed_region_capture
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
