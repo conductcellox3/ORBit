@@ -141,9 +141,30 @@ export class TopbarManager {
                 console.error("this.app.startCaptureSession is undefined!", this.app);
             }
         };
+        
+        const chainBtn = document.createElement('button');
+        chainBtn.className = 'utility-button clickable';
+        if (this.app && this.app.isChainCaptureEnabled) {
+            chainBtn.classList.add('active');
+        }
+        // Link icon
+        chainBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`;
+        chainBtn.title = 'Toggle Chain Capture Mode (Stack consecutive captures vertically)';
+        chainBtn.onclick = () => {
+            if (this.app) {
+                this.app.isChainCaptureEnabled = !this.app.isChainCaptureEnabled;
+                if (this.app.isChainCaptureEnabled) {
+                    chainBtn.classList.add('active');
+                } else {
+                    chainBtn.classList.remove('active');
+                    this.app.lastCaptureNoteId = null;
+                }
+            }
+        };
 
         leftIdentity.appendChild(dailyBtn);
         leftIdentity.appendChild(weeklyBtn);
+        leftIdentity.appendChild(chainBtn);
         leftIdentity.appendChild(captureBtn);
     }
 

@@ -22,6 +22,8 @@ export class App {
     this.clipboard = { objects: null, pasteCount: 0, lastPasteAnchor: null, linkPayload: null };
     this.pendingFocusNoteId = null;
     this.activePeek = null;
+    this.isChainCaptureEnabled = false;
+    this.lastCaptureNoteId = null;
     this.graphModel = new GraphModel(this);
     this.isGraphActive = false;
     workspaceManager.onManifestUpdated = () => {
@@ -75,6 +77,7 @@ export class App {
 
     this.isGraphActive = false;
     this.selection.clear();
+    this.lastCaptureNoteId = null;
     await this.persistence.loadNativeBoard(boardId);
     
     if (options.restoreViewport) {
@@ -219,12 +222,46 @@ export class App {
                const screenCenterX = rect.left + rect.width / 2;
                const screenCenterY = rect.top + rect.height / 2;
                
-               let pt = { x: screenCenterX, y: screenCenterY };
-               if (this.canvas?.viewport?.screenToCanvas) {
-                   pt = this.canvas.viewport.screenToCanvas(screenCenterX, screenCenterY);
+               // Dynamic dimensions maintaining aspect ratio (defaulting if malformed)
+               const baseW = res.originalWidth || 300;
+               const baseH = res.originalHeight || 200;
+               const maxWidth = 500; // Increased max width for chain viewing readability
+               const scale = Math.min(1.0, maxWidth / baseW);
+               const calcWidth = Math.round(baseW * scale);
+               const calcHeight = Math.round(baseH * scale);
+               
+               let insertX, insertY;
+               let doChain = false;
+               
+               if (this.isChainCaptureEnabled && this.lastCaptureNoteId) {
+                   const prev = this.state.notes.get(this.lastCaptureNoteId);
+                   // Ensure the prev note still exists and is an image note type
+                   if (prev && (prev.type === 'image' || prev.isImage)) {
+                       doChain = true;
+                       insertX = prev.x;
+                       insertY = prev.y + (prev.height || 200) + 64;
+                   }
                }
                
-               const newId = this.state.addImageNote(pt.x - 150, pt.y - 100, res.relativeSrc, 300, 200);
+               if (!doChain) {
+                   let pt = { x: screenCenterX, y: screenCenterY };
+                   if (this.canvas?.viewport?.screenToCanvas) {
+                       pt = this.canvas.viewport.screenToCanvas(screenCenterX, screenCenterY);
+                   }
+                   insertX = pt.x - calcWidth / 2;
+                   insertY = pt.y - calcHeight / 2;
+               }
+               
+               const newId = this.state.addImageNote(insertX, insertY, res.relativeSrc, calcWidth, calcHeight);
+               
+               if (doChain) {
+                   this.state.addEdge(this.lastCaptureNoteId, newId);
+               }
+               
+               if (this.isChainCaptureEnabled) {
+                   this.lastCaptureNoteId = newId;
+               }
+               
                this.selection.clear();
                this.selection.select(newId, 'note');
                

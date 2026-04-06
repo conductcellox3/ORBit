@@ -275,8 +275,28 @@
   cursor: pointer;
   color: var(--text-color);
   opacity: 0.6;
+  position: relative;
 }
 
 .utility-button:hover {
   opacity: 1;
+}
+
+.utility-button.active {
+  opacity: 1;
+  color: var(--theme-color, #007aff);
+}
+
+.utility-button.active::after {
+  content: 'ON';
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  background-color: var(--theme-color, #007aff);
+  color: white;
+  font-size: 8px;
+  font-weight: bold;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
 }

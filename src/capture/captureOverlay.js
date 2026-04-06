@@ -155,6 +155,8 @@ container.addEventListener('mouseup', async (e) => {
             status: 'success',
             path: savedPath,
             relativeSrc: captureInfo.relative_src,
+            originalWidth: selectionRect.width,
+            originalHeight: selectionRect.height,
             timestamp: Date.now()
         }));
 
