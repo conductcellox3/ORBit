@@ -28,7 +28,9 @@
         "02_NineGrid_Ideation.png",
         "03_Angle_Cross_Matrix.png",
         "04_Crazy8_Ideation.png",
-        "05_Diverge_Converge_Canvas.png"
+        "05_Diverge_Converge_Canvas.png",
+        "06_Storytelling_Canvas.png",
+        "07_Context_Canvas.png"
       ]
     },
     {
@@ -49,6 +51,15 @@
         "03_Timeline_Research.png",
         "04_Hypothesis_Test_Canvas.png",
         "05_Learning_Integration_Map.png"
+      ]
+    },
+    {
+      "name": "06_Task_Management",
+      "files": [
+        "01_Kanban_Board.png",
+        "02_Eisenhower_Matrix.png",
+        "03_PDCA_Workflow.png",
+        "04_GTD_Workflow.png"
       ]
     }
   ]
