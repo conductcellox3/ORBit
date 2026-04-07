@@ -608,6 +608,22 @@ export class Explorer {
         ctxItems.push({ label: 'Rename', disabled: isLegacy, onClick: handleRename });
         if (!isLegacy) {
             ctxItems.push({ label: 'Move to Folder ⏵', keepOpen: true, onClick: handleMoveToFolder });
+            ctxItems.push({ type: 'separator', disabled: false });
+            ctxItems.push({
+                label: 'Create Cross-board link',
+                onClick: () => {
+                    this.app.clipboard = this.app.clipboard || {};
+                    this.app.clipboard.linkPayload = {
+                        kind: 'board',
+                        boardId: board.id,
+                        boardTitle: board.title,
+                        timestamp: Date.now()
+                    };
+                    if (this.app.shell && this.app.shell.toast) {
+                        this.app.shell.toast.show('Board link ready');
+                    }
+                }
+            });
         }
         ctxItems.push({ label: 'Open Folder', disabled: false, onClick: handleOpenFolder });
         ctxItems.push({ label: 'Copy Path', disabled: false, onClick: handleCopyPath });

@@ -541,23 +541,52 @@ export class App {
     }
   }
 
-  async jumpToBoardNote(boardId, noteId) {
-    if (this.state.boardId === boardId) {
-      this.jumpToNoteCenter(noteId);
-      this.selection.clear();
-      this.selection.select(noteId, 'note');
-      return;
+  async navigateToLinkedBoard(boardId) {
+    if (this.state.boardId === boardId) return;
+    try {
+      await this.loadNativeBoard(boardId);
+    } catch (e) {
+      if (this.shell && this.shell.toast) {
+        this.shell.toast.show('Target board not found');
+      }
     }
+  }
 
-    // Otherwise, load board
-    await this.loadNativeBoard(boardId);
-    
-    // Defer the selection/jump slightly until layout
-    requestAnimationFrame(() => {
+  async navigateToLinkedNote(boardId, noteId) {
+    try {
+      if (this.state.boardId !== boardId) {
+        await this.loadNativeBoard(boardId);
+      }
+      
+      // Wait for layout passes and internal observer state
+      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      
+      if (!this.state.notes.has(noteId)) {
+        if (this.shell && this.shell.toast) {
+          this.shell.toast.show('Target note not found');
+        }
+        return;
+      }
+
       this.jumpToNoteCenter(noteId);
       this.selection.clear();
       this.selection.select(noteId, 'note');
-    });
+
+      // Flash highlight temporarily
+      const el = document.querySelector(`.orbit-note[data-id="${noteId}"]`);
+      if (el) {
+        const originalShadow = el.style.boxShadow;
+        el.style.boxShadow = '0 0 0 4px var(--accent-color, #3b82f6)';
+        setTimeout(() => {
+           el.style.boxShadow = originalShadow;
+        }, 600);
+      }
+    } catch (e) {
+      if (this.shell && this.shell.toast) {
+        this.shell.toast.show('Target board not found');
+      }
+    }
   }
 
 

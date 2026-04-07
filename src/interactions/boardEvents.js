@@ -169,35 +169,62 @@ export class BoardEvents {
 
         const payload = this.app.clipboard?.linkPayload;
         if (payload) {
-          items.push({
-            label: `Insert Linked Note (${payload.sourceBoardTitle})`,
-            onClick: () => {
-              const pt = this.canvas.viewport.screenToCanvas(e.clientX, e.clientY);
-              const newNode = {
-                type: 'linked-note',
-                x: pt.x,
-                y: pt.y,
-                w: 250,
-                h: payload.snapshot.kind === 'image' ? undefined : 150,
-                sourceRef: {
-                  boardId: payload.boardId,
-                  noteId: payload.noteId
-                },
-                snapshot: payload.snapshot,
-                linkMeta: {
-                  sourceBoardTitle: payload.sourceBoardTitle,
-                  sourceBoardDirName: payload.sourceBoardDirName,
-                  cachedAt: payload.timestamp
+          if (payload.kind === 'board') {
+            items.push({
+              label: `Insert Linked Board (${payload.boardTitle})`,
+              onClick: () => {
+                const pt = this.canvas.viewport.screenToCanvas(e.clientX, e.clientY);
+                const newNode = {
+                  type: 'linked-board',
+                  x: pt.x,
+                  y: pt.y,
+                  w: 250,
+                  h: 80,
+                  linkedBoardId: payload.boardId,
+                  linkedBoardTitle: payload.boardTitle,
+                  text: payload.boardTitle
+                };
+                const id = this.app.state.addLinkedNote(newNode);
+                if (id) {
+                  this.app.commitHistory();
+                  this.app.selection.clear();
+                  this.app.selection.select(id, 'note');
+                  this.app.clipboard.linkPayload = null; // Clear payload only on success
                 }
-              };
-              const id = this.app.state.addLinkedNote(newNode);
-              if (id) {
-                this.app.commitHistory();
-                this.app.selection.clear();
-                this.app.selection.select(id, 'note');
               }
-            }
-          });
+            });
+          } else {
+            items.push({
+              label: `Insert Linked Note (${payload.sourceBoardTitle})`,
+              onClick: () => {
+                const pt = this.canvas.viewport.screenToCanvas(e.clientX, e.clientY);
+                const newNode = {
+                  type: 'linked-note',
+                  x: pt.x,
+                  y: pt.y,
+                  w: 250,
+                  h: payload.snapshot.kind === 'image' ? undefined : 150,
+                  sourceRef: {
+                    boardId: payload.boardId,
+                    noteId: payload.noteId
+                  },
+                  snapshot: payload.snapshot,
+                  linkMeta: {
+                    sourceBoardTitle: payload.sourceBoardTitle,
+                    sourceBoardDirName: payload.sourceBoardDirName,
+                    cachedAt: payload.timestamp
+                  }
+                };
+                const id = this.app.state.addLinkedNote(newNode);
+                if (id) {
+                  this.app.commitHistory();
+                  this.app.selection.clear();
+                  this.app.selection.select(id, 'note');
+                  this.app.clipboard.linkPayload = null; // Clear payload only on success
+                }
+              }
+            });
+          }
           items.push({
             label: 'Clear Pending Link',
             onClick: () => {
@@ -295,6 +322,7 @@ export class BoardEvents {
               const n = this.app.state.notes.get(targetId);
               this.app.clipboard = this.app.clipboard || {};
               this.app.clipboard.linkPayload = {
+                kind: 'note',
                 sourceType: 'native',
                 boardId: this.app.state.boardId,
                 noteId: targetId,

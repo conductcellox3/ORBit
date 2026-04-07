@@ -246,8 +246,8 @@ export class NoteRenderer {
       blockOverlay.addEventListener('dblclick', (e) => {
         e.stopPropagation();
         e.preventDefault();
-        if (window.app && note.sourceRef) {
-          window.app.jumpToBoardNote(note.sourceRef.boardId, note.sourceRef.noteId);
+        if (this.app && this.app.navigateToLinkedNote && note.sourceRef) {
+          this.app.navigateToLinkedNote(note.sourceRef.boardId, note.sourceRef.noteId);
         }
       });
       content.appendChild(blockOverlay);
@@ -289,6 +289,61 @@ export class NoteRenderer {
         innerText.style.whiteSpace = 'pre-wrap';
         content.appendChild(innerText);
       }
+      
+      el.appendChild(content);
+
+      // Prevent pointer events crossing into editable logic
+      el.addEventListener('pointerdown', (e) => {
+        this.interactions.handlePointerDown('note', note.id, e);
+      });
+
+    } else if (note.type === 'linked-board') {
+      el.classList.add('is-linked-board');
+      el.style.display = 'flex';
+      el.style.flexDirection = 'column';
+      el.style.backgroundColor = 'var(--bg-layer-2, #F8F9FA)';
+      el.style.overflow = 'hidden';
+      el.style.border = '1px solid var(--border-color)';
+      el.style.borderRadius = '8px';
+
+      const header = document.createElement('div');
+      header.className = 'orbit-linked-board-header';
+      header.style.fontSize = '10px';
+      header.style.color = 'var(--color-text-muted, #64748b)';
+      header.style.backgroundColor = 'rgba(0,0,0,0.03)';
+      header.style.padding = '4px 8px';
+      header.style.borderBottom = '1px solid var(--border-color)';
+      header.style.userSelect = 'none';
+      header.textContent = 'Linked Board';
+      el.appendChild(header);
+
+      const content = document.createElement('div');
+      content.className = 'orbit-linked-board-content';
+      content.style.flex = '1';
+      content.style.padding = '12px';
+      content.style.display = 'flex';
+      content.style.alignItems = 'center';
+      content.style.justifyContent = 'center';
+      content.style.fontWeight = '500';
+      content.style.color = 'var(--color-text-main, #202124)';
+      content.style.textAlign = 'center';
+      content.style.overflow = 'hidden';
+      content.textContent = note.linkedBoardTitle || 'Unknown Board';
+      
+      const blockOverlay = document.createElement('div');
+      blockOverlay.style.position = 'absolute';
+      blockOverlay.style.inset = '0';
+      blockOverlay.style.zIndex = '10';
+      blockOverlay.style.cursor = 'pointer';
+
+      blockOverlay.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        if (this.app && this.app.navigateToLinkedBoard) {
+          this.app.navigateToLinkedBoard(note.linkedBoardId);
+        }
+      });
+      content.appendChild(blockOverlay);
       
       el.appendChild(content);
 

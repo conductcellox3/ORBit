@@ -46,7 +46,7 @@ export class State {
     this.sourceType = snapshot.sourceType || 'native';
     this.canvas = snapshot.canvas || { panX: 0, panY: 0, zoom: 1 };
     this.notes = new Map(snapshot.notes.map(([k, v]) => {
-      if (v.type === 'background-image') {
+      if (v.type === 'background-image' || v.type === 'linked-board') {
         return [k, { ...v }];
       }
       const width = v.width ?? v.w;
