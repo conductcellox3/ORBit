@@ -102,6 +102,28 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Minimalist Scrollbar (Obsidian style) - App-wide */
+*::-webkit-scrollbar {
+  width: 4px;
+  height: 4px; /* for horizontal scrollbars like tabs if visible */
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
 }
 
 .mock-tree-item {
