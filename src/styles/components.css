@@ -473,7 +473,7 @@
    ========================================================================= */
 
 .orbit-search-container {
-  background: var(--color-surface, #ffffff);
+  background: transparent;
   width: 100%;
   height: 100%;
   max-width: none;
