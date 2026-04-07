@@ -761,6 +761,11 @@ export class BoardEvents {
       }
       
       if (e.key === 'Delete' || e.key === 'Backspace') {
+        const tag = document.activeElement ? document.activeElement.tagName : '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (document.activeElement && document.activeElement.isContentEditable)) {
+          return; // Allow default typing text deletion
+        }
+
         if (this.app.selection.selectedIds.size > 0) {
           for (const id of Array.from(this.app.selection.selectedIds)) {
             this.app.state.deleteNode(id);
