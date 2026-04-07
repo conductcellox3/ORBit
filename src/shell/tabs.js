@@ -49,7 +49,66 @@ export class TabManager {
       }
   }
 
+  async activateTab(tabInfo) {
+      if (tabInfo.id === '__orbit_boards_graph__') {
+          if (this.app.openGraphTab) await this.app.openGraphTab();
+      } else if (tabInfo.type === 'native') {
+          await this.app.loadNativeBoard(tabInfo.id);
+      } else {
+          const legacyData = await workspaceLoader.loadBoardState(tabInfo.id, tabInfo.slug);
+          if (legacyData) {
+            const fakeManifestEntry = { id: tabInfo.id, title: tabInfo.title, slug: tabInfo.slug };
+            const snapshot = legacyAdapter.adapt(fakeManifestEntry, legacyData.meta, legacyData.state);
+            await this.app.loadLegacyBoard(snapshot);
+          }
+      }
+  }
+
+  showDropdown(e) {
+      import('./contextMenu.js').then(({ ContextMenu }) => {
+          const items = Array.from(this.openTabs.values()).map(tab => ({
+              label: tab.title,
+              onClick: () => {
+                 if (this.app.state.boardId !== tab.id && !this.app.isGraphActive) {
+                     this.activateTab(tab);
+                 } else if (tab.id === '__orbit_boards_graph__' && !this.app.isGraphActive) {
+                     this.activateTab(tab);
+                 }
+              }
+          }));
+
+          if (items.length === 0) {
+              items.push({ label: 'No open tabs', disabled: true });
+          }
+
+          const rect = this.dropdownBtn.getBoundingClientRect();
+          // Dropdown appears from right alignment
+          ContextMenu.show(rect.right - 140, rect.bottom, items);
+      });
+  }
+
   mount() {
+    if (!this.dropdownWrapper) {
+      this.dropdownWrapper = document.createElement('div');
+      this.dropdownWrapper.className = 'top-center-tabs-wrapper';
+      this.dropdownWrapper.style.display = 'flex';
+      this.dropdownWrapper.style.flex = '1';
+      this.dropdownWrapper.style.minWidth = '0';
+      this.dropdownWrapper.style.height = '100%';
+      this.dropdownWrapper.style.alignItems = 'center';
+      
+      this.element.parentNode.insertBefore(this.dropdownWrapper, this.element);
+      this.dropdownWrapper.appendChild(this.element);
+      
+      this.dropdownBtn = document.createElement('div');
+      this.dropdownBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+      this.dropdownBtn.className = 'tab-dropdown-btn';
+      this.dropdownBtn.title = 'Open Tabs';
+      this.dropdownBtn.onclick = (e) => this.showDropdown(e);
+      
+      this.dropdownWrapper.appendChild(this.dropdownBtn);
+    }
+
     this.syncTabFromState();
     this.render();
     
@@ -82,8 +141,9 @@ export class TabManager {
       tabEl.style.gap = '8px';
       
       const titleSpan = document.createElement('span');
+      titleSpan.className = 'tab-title-text';
       titleSpan.textContent = tabInfo.title;
-      titleSpan.style.marginRight = '8px';
+      titleSpan.title = tabInfo.title; // Show full title on native hover
       
       // Close button
       // Close button class handles appearance in CSS
@@ -111,11 +171,7 @@ export class TabManager {
                                    
              if (nearestNative) {
                  const tInfo = this.openTabs.get(nearestNative);
-                 if (tInfo.id === '__orbit_boards_graph__') {
-                     if (this.app.openGraphTab) await this.app.openGraphTab();
-                 } else {
-                     await this.app.loadNativeBoard(tInfo.id);
-                 }
+                 await this.activateTab(tInfo);
              } else {
                  await this.app.loadNativeBoard();
              }
@@ -132,22 +188,18 @@ export class TabManager {
       
       tabEl.addEventListener('click', async () => {
         if (!isActive) {
-          if (tabInfo.id === '__orbit_boards_graph__') {
-              if (this.app.openGraphTab) await this.app.openGraphTab();
-          } else if (tabInfo.type === 'native') {
-              await this.app.loadNativeBoard(tabInfo.id);
-          } else {
-              const legacyData = await workspaceLoader.loadBoardState(tabInfo.id, tabInfo.slug);
-              if (legacyData) {
-                const fakeManifestEntry = { id: tabInfo.id, title: tabInfo.title, slug: tabInfo.slug };
-                const snapshot = legacyAdapter.adapt(fakeManifestEntry, legacyData.meta, legacyData.state);
-                await this.app.loadLegacyBoard(snapshot);
-              }
-          }
+           await this.activateTab(tabInfo);
         }
       });
       
       this.element.appendChild(tabEl);
+      
+      if (isActive) {
+          // ensure the active tab is scrolled into view gently
+          setTimeout(() => {
+             tabEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+          }, 10);
+      }
     }
   }
 }

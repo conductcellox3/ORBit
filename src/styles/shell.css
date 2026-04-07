@@ -21,7 +21,7 @@
   background-color: var(--color-app-bg);
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 16px 0 0; /* Remove left padding to let top-left-identity align completely to the window edge */
   user-select: none;
   -webkit-app-region: drag; /* Let Tauri drag window from topbar */
 }
@@ -35,7 +35,13 @@
   font-weight: 600;
   font-size: 14px;
   color: var(--text-color);
-  width: 200px; /* keep stable width to align center tabs */
+  flex-shrink: 0;
+  width: calc(var(--rail-width) + var(--pane-default-width) + 2px); /* Matches exact width of rail + pane + borders */
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding-left: 16px; /* Restored left padding here */
+  box-sizing: border-box;
 }
 
 #shell-main {
@@ -194,16 +200,44 @@
 /* Tab Bar */
 #top-center-tabs {
   display: flex;
-  gap: 8px;
+  gap: 4px; /* tighter gap between tabs */
   flex: 1;
-  justify-content: center;
-  align-items: flex-end; /* Push tabs to the bottom to ground them */
+  min-width: 0;
+  justify-content: flex-start;
+  align-items: flex-end;
   height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none; /* Firefox */
+}
+
+#top-center-tabs::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
+}
+
+.top-center-tabs-wrapper {
+  margin: 0; /* Touch the left border seamlessly */
+}
+
+.tab-dropdown-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  height: 100%;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  cursor: pointer;
+  transition: color var(--transition-speed);
+}
+
+.tab-dropdown-btn:hover {
+  color: var(--color-text-main);
 }
 
 .board-tab {
-  padding: 8px 16px;
-  border-radius: 8px 8px 0 0; /* Folder tab shape */
+  padding: 6px 8px 6px 12px; /* tightened from 8px 12px 8px 16px */
+  border-radius: 8px 8px 0 0;
   font-size: 13px;
   cursor: default;
   color: var(--color-text-muted);
@@ -211,6 +245,19 @@
   display: flex;
   align-items: center;
   position: relative;
+  min-width: 60px; /* tightened from 80px */
+  max-width: 160px; /* tightened from 200px */
+  flex: 1 1 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.board-tab span.tab-title-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 4px; /* tightened from 8px */
 }
 
 .board-tab:hover {
@@ -263,7 +310,7 @@
 #top-right-utils {
   display: flex;
   gap: 8px;
-  width: 200px;
+  flex-shrink: 0;
   justify-content: flex-end;
 }
 
