@@ -49,6 +49,8 @@ export class BoardAdapter {
             {
               id: item.id,
               text: item.text || '',
+              textFormat: 'plain',
+              type: 'text',
               x: item.x || 0,
               y: item.y || 0,
               width: item.w, // Can be undefined in v2

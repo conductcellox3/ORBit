@@ -167,7 +167,7 @@ export class PropertiesPanel {
     if (!el) return;
     
     // If it's an input and NOT currently focused, update its value.
-    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
       if (document.activeElement !== el && el.value !== value) {
         el.value = value;
       }
@@ -722,6 +722,18 @@ export class PropertiesPanel {
         });
         container.appendChild(colorRow);
 
+        // Format
+        if (!isLegacy && note.type !== 'calc') {
+          const formatRow = this.createSelectRow('inspect-format', 'Format', note.textFormat || 'plain', false, [
+            { label: 'Plain Text', value: 'plain' },
+            { label: 'Markdown', value: 'markdown' }
+          ], (newVal) => {
+             this.app.state.setNoteTextFormat(id, newVal);
+             this.app.commitHistory();
+          });
+          container.appendChild(formatRow);
+        }
+
         if (note.type !== 'calc') {
           if (isLegacy) {
             // Markers (Read only for now)
@@ -910,6 +922,36 @@ export class PropertiesPanel {
 
     group.appendChild(labelEl);
     group.appendChild(valEl);
+    return group;
+  }
+
+  createSelectRow(id, label, initialValue, disabled, options, onChange) {
+    const group = document.createElement('div');
+    group.className = 'orbit-properties-group';
+    
+    const labelEl = document.createElement('div');
+    labelEl.className = 'orbit-property-label';
+    labelEl.textContent = label;
+
+    const select = document.createElement('select');
+    select.className = 'orbit-property-select';
+    select.id = `prop-${id}`;
+    select.disabled = disabled;
+    
+    options.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.label;
+        if (opt.value === initialValue) option.selected = true;
+        select.appendChild(option);
+    });
+
+    select.addEventListener('change', () => {
+        onChange(select.value);
+    });
+
+    group.appendChild(labelEl);
+    group.appendChild(select);
     return group;
   }
 

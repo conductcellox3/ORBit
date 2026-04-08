@@ -898,3 +898,95 @@ body.is-printing-mode #print-overlay-sandbox {
   width: 14px;
   height: 14px;
 }
+
+/* =========================================================================
+   10. Markdown Rendering (Sprint 25)
+   ========================================================================= */
+
+.orbit-markdown-rendered {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  word-wrap: break-word;
+  white-space: normal; /* overriding note default pre-wrap */
+  line-height: var(--line-height-base, 1.5);
+  font-family: inherit;
+  color: var(--color-text-main);
+  /* Make sure it is fully opaque to pointer events for double click */
+  pointer-events: auto;
+  cursor: text;
+}
+
+/* Headings */
+.orbit-markdown-rendered h1,
+.orbit-markdown-rendered h2,
+.orbit-markdown-rendered h3 {
+  margin: 12px 0 6px 0;
+  font-weight: 600;
+  color: var(--color-text-strong, #111827);
+  line-height: 1.25;
+}
+.orbit-markdown-rendered h1 { font-size: 1.3em; }
+.orbit-markdown-rendered h2 { font-size: 1.15em; }
+.orbit-markdown-rendered h3 { font-size: 1.05em; margin-bottom: 4px; }
+
+.orbit-markdown-rendered h1:first-child,
+.orbit-markdown-rendered h2:first-child,
+.orbit-markdown-rendered h3:first-child {
+  margin-top: 0;
+}
+
+/* Lists */
+.orbit-md-ul, .orbit-md-ol {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+.orbit-md-ul li, .orbit-md-ol li {
+  margin-bottom: 2px;
+}
+
+/* Bold/Italic/Mark */
+.orbit-markdown-rendered strong {
+  font-weight: 600;
+  color: var(--color-text-strong, #111827);
+}
+.orbit-markdown-rendered em {
+  font-style: italic;
+}
+.orbit-markdown-rendered mark {
+  background-color: rgba(253, 224, 71, 0.4);
+  color: inherit;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+/* Code */
+.orbit-markdown-rendered code {
+  font-family: Consolas, "SFMono-Regular", ui-monospace, Menlo, Monaco, monospace;
+  background-color: rgba(0, 0, 0, 0.03);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.orbit-markdown-rendered pre {
+  margin: 8px 0;
+  padding: 8px;
+  background-color: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.orbit-markdown-rendered pre code {
+  background-color: transparent;
+  padding: 0;
+  white-space: pre;
+  word-break: normal;
+  font-size: 0.85em;
+}
+
+.orbit-markdown-rendered > :last-child {
+  margin-bottom: 0;
+}

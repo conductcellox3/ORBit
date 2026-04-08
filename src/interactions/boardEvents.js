@@ -447,6 +447,16 @@ export class BoardEvents {
         if (isSingleTextNote && this.app.state.sourceType === 'native') {
           items.push({ type: 'separator' });
           const noteNode = this.app.state.notes.get(targetId);
+          
+          items.push({
+             label: noteNode.textFormat === 'markdown' ? 'Convert to Plain Text' : 'Convert to Markdown',
+             onClick: () => {
+                const newFormat = noteNode.textFormat === 'markdown' ? 'plain' : 'markdown';
+                this.app.state.setNoteTextFormat(targetId, newFormat);
+                this.app.commitHistory();
+             }
+          });
+          
           const currentMarkers = noteNode.markers || [];
           ['action', 'question', 'decision', 'risk', 'reference'].forEach(m => {
             const isActive = currentMarkers.includes(m);

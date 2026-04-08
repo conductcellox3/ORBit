@@ -1,5 +1,6 @@
 import { assetResolver } from '../legacy/assetResolver.js';
 import { workspaceManager } from '../core/workspace.js';
+import { parseMarkdown } from '../utils/markdownParser.js';
 
 export class NoteRenderer {
   constructor(app, container, interactions) {
@@ -89,8 +90,37 @@ export class NoteRenderer {
         }
       } else {
         const contentEl = el.querySelector('.orbit-note-content');
-        if (contentEl && document.activeElement !== contentEl) {
-          contentEl.innerText = note.text;
+        const displayEl = el.querySelector('.orbit-markdown-display');
+        
+        if (contentEl && displayEl) {
+          const isFocused = document.activeElement === contentEl;
+          
+          if (note.textFormat === 'markdown') {
+             if (isFocused || this.app.pendingFocusNoteId === id) {
+                 contentEl.style.display = 'block';
+                 displayEl.style.display = 'none';
+                 if (!isFocused && contentEl.innerText !== note.text) {
+                     contentEl.innerText = note.text;
+                 }
+             } else {
+                 contentEl.style.display = 'none';
+                 displayEl.style.display = 'block';
+                 const parsedHtml = parseMarkdown(note.text);
+                 if (displayEl.innerHTML !== parsedHtml) {
+                     displayEl.innerHTML = parsedHtml;
+                 }
+                 // Sync hidden plain text just in case edits were missed
+                 if (contentEl.innerText !== note.text) {
+                     contentEl.innerText = note.text;
+                 }
+             }
+          } else {
+             contentEl.style.display = 'block';
+             displayEl.style.display = 'none';
+             if (!isFocused && contentEl.innerText !== note.text) {
+               contentEl.innerText = note.text;
+             }
+          }
         }
 
         // Modest Marker Chips
@@ -180,7 +210,12 @@ export class NoteRenderer {
         const el = this.elements.get(focusId);
         if (el) {
           const contentEl = el.querySelector('.orbit-note-content');
+          const displayEl = el.querySelector('.orbit-markdown-display');
+          
           if (contentEl) {
+            if (displayEl) displayEl.style.display = 'none';
+            contentEl.style.display = 'block';
+            
             contentEl.focus();
             
             // Move cursor to the end
@@ -477,6 +512,19 @@ export class NoteRenderer {
         el.appendChild(caption);
       }
     } else {
+      const displayContainer = document.createElement('div');
+      displayContainer.className = 'orbit-markdown-display orbit-markdown-rendered';
+      displayContainer.style.display = 'none';
+      
+      displayContainer.addEventListener('dblclick', (e) => {
+          if (note.textFormat === 'markdown') {
+             e.stopPropagation();
+             e.preventDefault();
+             this.app.pendingFocusNoteId = note.id;
+             this.app.state.notify();
+          }
+      });
+
       const content = document.createElement('div');
       content.className = 'orbit-note-content';
       content.contentEditable = 'true';
@@ -498,9 +546,13 @@ export class NoteRenderer {
       content.addEventListener('blur', () => {
         if (content.innerText !== this.app.state.notes.get(note.id).text) {
           this.app.state.updateNoteText(note.id, content.innerText);
-          this.app.commitHistory();
+          this.app.commitHistory(); // This will trigger re-render and swap display state naturally
+        } else {
+          // Even if text didn't change, we need to swap back to display mode
+          this.app.state.notify();
         }
       });
+      el.appendChild(displayContainer);
       el.appendChild(content);
     }
     
