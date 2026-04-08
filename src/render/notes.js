@@ -37,6 +37,8 @@ export class NoteRenderer {
       
       if (note.type === 'image' || note.isImage) {
         el.style.height = 'auto';
+      } else if (note.type === 'text' || !note.type || note.type === 'linked-note') {
+        el.style.height = 'auto';
       } else {
         if (note.height !== undefined) el.style.height = `${note.height}px`;
         else el.style.removeProperty('height');
@@ -601,11 +603,15 @@ export class NoteRenderer {
           }
         } else {
           newW = Math.max(120, newW);
-          newH = Math.max(56, newH);
+          if (note.type !== 'text' && note.type !== 'linked-note') {
+            newH = Math.max(56, newH);
+          }
         }
         
         el.style.width = `${newW}px`;
-        el.style.height = `${newH}px`;
+        if (note.type !== 'text' && note.type !== 'linked-note') {
+          el.style.height = `${newH}px`;
+        }
         
         if (this.interactions.canvas && this.interactions.canvas.edgeRenderer) {
           this.interactions.canvas.edgeRenderer.render();
@@ -631,6 +637,19 @@ export class NoteRenderer {
       el.appendChild(handle);
     }
     
+    // Attach ResizeObserver to keep state height perfectly synchronized for text notes
+    // Useful for bounding boxes and clean snapshot exports without layout locking.
+    if (note.type === 'text' || !note.type || note.type === 'linked-note') {
+      const ro = new ResizeObserver(entries => {
+        for (const entry of entries) {
+           const h = entry.target.offsetHeight;
+           this.app.state.updateNoteHeightQuietly(note.id, h);
+        }
+      });
+      ro.observe(el);
+      // Safe to let it garbage collect with `el` when removed from DOM
+    }
+
     return el;
   }
 

@@ -85,7 +85,7 @@ export class State {
 
   addNote(x, y, text = '') {
     const id = crypto.randomUUID();
-    this.notes.set(id, { id, text, textFormat: 'plain', type: 'text', x, y, parentFrameId: null });
+    this.notes.set(id, { id, text, textFormat: 'plain', type: 'text', x, y, width: 240, parentFrameId: null });
     this.notify();
     return id;
   }
@@ -126,6 +126,14 @@ export class State {
     if (note && note.text !== text) {
       note.text = text;
       this.notify();
+    }
+  }
+
+  updateNoteHeightQuietly(id, height) {
+    if (this.sourceType === 'legacy') return;
+    const note = this.notes.get(id);
+    if (note && note.height !== height) {
+      note.height = height;
     }
   }
 

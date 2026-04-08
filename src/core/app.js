@@ -719,6 +719,17 @@ export class App {
     let offsetX = 32;
     let offsetY = 32;
     
+    // If we're pasting across boards using the keyboard shortcut (no explicit mouse target),
+    // we should override targetX/targetY to the viewport center.
+    if ((targetX === undefined || targetY === undefined) && isCrossBoard) {
+       const container = document.getElementById('canvas-container');
+       if (container && this.state.canvas) {
+         const rect = container.getBoundingClientRect();
+         targetX = ((rect.width / 2) - this.state.canvas.panX) / this.state.canvas.zoom;
+         targetY = ((rect.height / 2) - this.state.canvas.panY) / this.state.canvas.zoom;
+       }
+    }
+    
     if (targetX !== undefined && targetY !== undefined) {
       // If we paste repeatedly without moving mouse much, stack them
       if (this.clipboard.lastPasteAnchor &&
