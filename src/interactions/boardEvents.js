@@ -27,6 +27,7 @@ export class BoardEvents {
 
       const noteEl = e.target.closest('.orbit-note, .orbit-background-image');
       const frameEl = e.target.closest('.orbit-frame');
+      const edgeEl = e.target.closest('.orbit-edge-hit');
       
       let targetId = null;
       let targetType = null;
@@ -37,6 +38,9 @@ export class BoardEvents {
       } else if (frameEl) {
         targetId = frameEl.dataset.id;
         targetType = 'frame';
+      } else if (edgeEl) {
+        targetId = edgeEl.dataset.id;
+        targetType = 'edge';
       }
 
       if (targetId) {
@@ -480,10 +484,14 @@ export class BoardEvents {
         
         items.push({ type: 'separator' });
         items.push({
-          label: 'Delete',
+          label: targetType === 'edge' ? 'Delete Edge' : 'Delete',
           onClick: () => {
             for (const id of Array.from(this.app.selection.selectedIds)) {
-              this.app.state.deleteNode(id);
+              if (this.app.selection.type === 'edge') {
+                this.app.state.edges.delete(id);
+              } else {
+                this.app.state.deleteNode(id);
+              }
             }
             this.app.selection.clear();
             this.app.commitHistory();
@@ -800,13 +808,17 @@ export class BoardEvents {
       
       if (e.key === 'Delete' || e.key === 'Backspace') {
         const tag = document.activeElement ? document.activeElement.tagName : '';
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || (document.activeElement && document.activeElement.isContentEditable)) {
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (document.activeElement && document.activeElement.isContentEditable)) {
           return; // Allow default typing text deletion
         }
 
         if (this.app.selection.selectedIds.size > 0) {
           for (const id of Array.from(this.app.selection.selectedIds)) {
-            this.app.state.deleteNode(id);
+            if (this.app.selection.type === 'edge') {
+              this.app.state.edges.delete(id);
+            } else {
+              this.app.state.deleteNode(id);
+            }
           }
           this.app.selection.clear();
           this.app.commitHistory();

@@ -169,12 +169,53 @@
   stroke: var(--color-edge-active);
   stroke-width: 1px;
   fill: none;
+  pointer-events: none; /* Hit-area handles clicks */
   transition: stroke 0.2s ease, stroke-width 0.2s ease;
 }
 
+/* Hit Area for Forgiving Selection */
+.orbit-edge-hit {
+  stroke: transparent;
+  stroke-width: 25px;
+  fill: none;
+  cursor: pointer;
+  pointer-events: stroke;
+}
+
+/* Selected State */
 .orbit-edge.is-selected {
-  stroke: #1e293b; /* Even darker for selection */
+  stroke: var(--color-interactive-primary, #3B82F6);
   stroke-width: 2px;
+}
+
+/* Edge Style Presets */
+.orbit-edge.preset-strong {
+  stroke: #475569; /* Stronger ink than active */
+  stroke-width: 2.5px;
+}
+
+.orbit-edge.preset-tentative {
+  stroke-dasharray: 6 6;
+}
+
+.orbit-edge.preset-weak {
+  stroke: #cbd5e1;
+}
+
+/* Edge Labels */
+.orbit-edge-label-bg {
+  fill: var(--bg-layer-0, #f8fafc);
+  stroke: transparent;
+  rx: 4px;
+  ry: 4px;
+}
+
+.orbit-edge-label-text {
+  fill: var(--color-text-main);
+  font-size: 10px;
+  font-weight: 500;
+  pointer-events: none;
+  user-select: none;
 }
 
 /* Marquee Selection Box */

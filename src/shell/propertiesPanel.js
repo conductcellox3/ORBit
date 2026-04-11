@@ -943,6 +943,37 @@ export class PropertiesPanel {
 
         container.appendChild(this.createRow('Size', `${Math.round(frame.width || 0)} × ${Math.round(frame.height || 0)}`, 'inspect-size'));
         container.appendChild(this.createRow('Items', `${frame.childIds ? frame.childIds.length : 0} items`, 'inspect-count'));
+    } else if (type === 'edge') {
+        const edge = this.app.state.edges.get(id);
+        if (edge) {
+            container.appendChild(this.createRow('Type', 'Connection Edge'));
+
+            const labelRow = this.createEditRow('inspect-edge-label', 'Label', edge.label || '', isLegacy, (newVal) => {
+                edge.label = newVal;
+                this.app.state.notify();
+                this.app.commitHistory();
+            });
+            container.appendChild(labelRow);
+
+            const commentRow = this.createEditRow('inspect-edge-comment', 'Comment', edge.comment || '', isLegacy, (newVal) => {
+                edge.comment = newVal;
+                this.app.state.notify();
+                this.app.commitHistory();
+            }, true);
+            container.appendChild(commentRow);
+
+            const styleRow = this.createSelectRow('inspect-edge-style', 'Style', edge.preset || 'standard', isLegacy, [
+                { label: 'Standard', value: 'standard' },
+                { label: 'Strong', value: 'strong' },
+                { label: 'Tentative', value: 'tentative' },
+                { label: 'Weak', value: 'weak' }
+            ], (newVal) => {
+                edge.preset = newVal;
+                this.app.state.notify();
+                this.app.commitHistory();
+            });
+            container.appendChild(styleRow);
+        }
     }
 
     this.bodyEl.appendChild(container);

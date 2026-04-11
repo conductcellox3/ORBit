@@ -41,7 +41,9 @@ export class EdgeDrawInteraction {
       }
 
       if (targetId) {
-        this.app.state.addEdge(this.sourceId, targetId);
+        const edgeId = this.app.state.addEdge(this.sourceId, targetId);
+        this.app.selection.clear();
+        this.app.selection.select(edgeId, 'edge');
         this.app.commitHistory();
       }
 

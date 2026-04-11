@@ -59,21 +59,64 @@ export class EdgeRenderer {
     }
 
     for (const [id, edge] of edges.entries()) {
-      let path = this.paths.get(id);
-      if (!path) {
-        path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      let group = this.paths.get(id);
+      if (!group) {
+        group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        group.dataset.id = id;
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('class', 'orbit-edge');
-        path.dataset.id = id;
-        this.svgContainer.appendChild(path);
-        this.paths.set(id, path);
+
+        const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        hit.setAttribute('class', 'orbit-edge-hit');
+        hit.dataset.id = id;
+        
+        hit.addEventListener('pointerdown', (e) => {
+            if (e.button === 0) {
+               this.app.selection.select(id, 'edge');
+               e.stopPropagation();
+            } else if (e.button === 2) {
+               this.app.selection.select(id, 'edge');
+            }
+        });
+
+        const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        bg.setAttribute('class', 'orbit-edge-label-bg');
+        
+        const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        txt.setAttribute('class', 'orbit-edge-label-text');
+        txt.setAttribute('text-anchor', 'middle');
+        txt.setAttribute('dominant-baseline', 'central');
+
+        group.appendChild(path);
+        group.appendChild(hit);
+        group.appendChild(bg);
+        group.appendChild(txt);
+        this.svgContainer.appendChild(group);
+
+        group._nodes = { path, hit, bg, txt };
+        this.paths.set(id, group);
       }
 
+      const { path, hit, bg, txt } = group._nodes;
       const sourceNote = this.app.state.notes.get(edge.sourceId);
       const targetNote = this.app.state.notes.get(edge.targetId);
 
       if (sourceNote && targetNote) {
-        const d = this.calculateBezier(sourceNote, targetNote);
-        path.setAttribute('d', d);
+        const shape = this.calculateBezier(sourceNote, targetNote);
+        path.setAttribute('d', shape.d);
+        hit.setAttribute('d', shape.d);
+        
+        if (edge.comment) {
+            hit.setAttribute('title', edge.comment);
+            const titleEl = hit.querySelector('title') || document.createElementNS('http://www.w3.org/2000/svg', 'title');
+            titleEl.textContent = edge.comment;
+            if (!hit.querySelector('title')) hit.appendChild(titleEl);
+        } else {
+            hit.removeAttribute('title');
+            const titleEl = hit.querySelector('title');
+            if (titleEl) titleEl.remove();
+        }
         
         // Handle Directionality
         path.removeAttribute('marker-end');
@@ -85,9 +128,41 @@ export class EdgeRenderer {
         if (edge.direction === 'backward' || edge.direction === 'both') {
           path.setAttribute('marker-start', 'url(#arrowhead-start)');
         }
-      }
 
-      path.classList.toggle('is-selected', isEdgeSelection && this.app.selection.has(id));
+        // Apply visual presets
+        const preset = edge.preset || 'standard';
+        let strokeClass = `orbit-edge preset-${preset}`;
+        if (isEdgeSelection && this.app.selection.has(id)) {
+            strokeClass += ' is-selected';
+        }
+        path.setAttribute('class', strokeClass);
+
+        // Apply Labels
+        if (edge.label && edge.label.trim() !== '') {
+            const rawLabel = edge.label.trim();
+            const displayLabel = rawLabel.length > 20 ? rawLabel.substring(0, 20) + '...' : rawLabel;
+            
+            txt.textContent = displayLabel;
+            
+            // Re-calc BBox to size the rect natively
+            const bbox = txt.getBBox ? txt.getBBox() : { width: 0, height: 0 };
+            const padX = 6;
+            const padY = 2;
+            
+            bg.setAttribute('x', shape.cx - (bbox.width / 2) - padX);
+            bg.setAttribute('y', shape.cy - (bbox.height / 2) - padY);
+            bg.setAttribute('width', Math.max(0, bbox.width + padX * 2));
+            bg.setAttribute('height', Math.max(0, bbox.height + padY * 2));
+            bg.style.display = 'block';
+            
+            txt.setAttribute('x', shape.cx);
+            txt.setAttribute('y', shape.cy);
+            txt.style.display = 'block';
+        } else {
+            txt.style.display = 'none';
+            bg.style.display = 'none';
+        }
+      }
     }
 
     let previewPath = this.paths.get('draw-preview');
@@ -102,8 +177,8 @@ export class EdgeRenderer {
       const sourceNote = this.app.state.notes.get(activeDrawEdge.sourceId);
       if (sourceNote) {
         const targetPoint = activeDrawEdge.targetPoint;
-        const d = this.calculateBezier(sourceNote, { x: targetPoint.x, y: targetPoint.y, width: 0, height: 0 });
-        previewPath.setAttribute('d', d);
+        const shape = this.calculateBezier(sourceNote, { x: targetPoint.x, y: targetPoint.y, width: 0, height: 0 });
+        previewPath.setAttribute('d', shape.d);
       }
     } else if (previewPath) {
       previewPath.remove();
@@ -144,7 +219,10 @@ export class EdgeRenderer {
     const dx = tX - sX;
     const dy = tY - sY;
     
-    if (dx === 0 && dy === 0) return `M ${sX} ${sY} L ${tX} ${tY}`;
+    const cx = sX + dx / 2;
+    const cy = sY + dy / 2;
+    
+    if (dx === 0 && dy === 0) return { d: `M ${sX} ${sY} L ${tX} ${tY}`, cx, cy };
 
     // Target rect intersection backward
     // Prevent divide by zero
@@ -166,6 +244,6 @@ export class EdgeRenderer {
     const sourceIntersectX = sX + (dx * ts);
     const sourceIntersectY = sY + (dy * ts);
 
-    return `M ${sourceIntersectX} ${sourceIntersectY} L ${intersectX} ${intersectY}`;
+    return { d: `M ${sourceIntersectX} ${sourceIntersectY} L ${intersectX} ${intersectY}`, cx, cy };
   }
 }
