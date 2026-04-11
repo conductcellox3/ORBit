@@ -17,16 +17,19 @@ export class PropertiesPanel {
     this.initTabs();
 
     this.app.selection.subscribe(() => {
-      // Do not auto-switch tabs if the user is actively using the Search tab
-      if (this.activeTab !== 'search') {
-        if (this.app.selection.selectedIds.size === 1) {
-          this.switchTab('inspect', true);
-        } else if (this.app.selection.selectedIds.size === 0) {
-          if (!this.app.isGraphActive || !this.app.boardsGraph?.selectedGraphNodeId) {
-            this.switchTab('board', true);
-          }
+      // Do not auto-switch tabs or re-render if the user is actively using the Search or Harvest tab
+      if (this.activeTab === 'search' || this.activeTab === 'harvest') {
+        return; // Skip selection-driven panel updates for these independent tabs
+      }
+
+      if (this.app.selection.selectedIds.size === 1) {
+        this.switchTab('inspect', true);
+      } else if (this.app.selection.selectedIds.size === 0) {
+        if (!this.app.isGraphActive || !this.app.boardsGraph?.selectedGraphNodeId) {
+          this.switchTab('board', true);
         }
       }
+      
       this.fullRender();
     });
 
@@ -116,7 +119,17 @@ export class PropertiesPanel {
       if (this.harvestDebounce) clearTimeout(this.harvestDebounce);
       this.harvestDebounce = setTimeout(() => {
           if (this.activeTab === 'harvest' && this.harvestPanel) {
-              this.harvestPanel.fullRender();
+              // Heavily optimize: Only re-render if structural logic might have changed
+              let contentHash = '';
+              for (const [id, note] of this.app.state.notes.entries()) {
+                  contentHash += id + (note.text ? note.text.length : 0) + (note.x + note.y);
+              }
+              const currentStateStr = `${this.app.state.notes.size}-${this.app.state.edges.size}-${contentHash}`;
+              
+              if (this.lastHarvestStateStr !== currentStateStr) {
+                  this.lastHarvestStateStr = currentStateStr;
+                  this.harvestPanel.fullRender();
+              }
           }
       }, 500);
     } else if (this.activeTab === 'markdown') {
@@ -423,6 +436,13 @@ export class PropertiesPanel {
    renderHarvestMode() {
       this.bodyEl.style.padding = '0'; // Allow Harvest UI to stretch
       if (this.harvestPanel && this.harvestPanel.container) {
+         // Initialize hash to prevent immediate unnecessay wipe on first zap
+         let contentHash = '';
+         for (const [id, note] of this.app.state.notes.entries()) {
+             contentHash += id + (note.text ? note.text.length : 0) + (note.x + note.y);
+         }
+         this.lastHarvestStateStr = `${this.app.state.notes.size}-${this.app.state.edges.size}-${contentHash}`;
+         
          this.bodyEl.appendChild(this.harvestPanel.container);
          this.harvestPanel.mount();
       }
