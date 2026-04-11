@@ -1,5 +1,6 @@
 import { workspaceManager } from '../core/workspace.js';
 import { BoardMarkdown } from '../core/export/boardMarkdown.js';
+import { HarvestPanel } from './harvestPanel.js';
 
 export class PropertiesPanel {
   constructor(app) {
@@ -10,6 +11,8 @@ export class PropertiesPanel {
     this.activeTab = 'board';
     this.currentRenderedId = null; 
     this.currentRenderedTab = null;
+
+    this.harvestPanel = new HarvestPanel(app);
 
     this.initTabs();
 
@@ -59,6 +62,9 @@ export class PropertiesPanel {
     } else if (this.activeTab === 'search') {
       this.renderSearchMode();
       this.currentRenderedId = 'SEARCH';
+    } else if (this.activeTab === 'harvest') {
+      this.renderHarvestMode();
+      this.currentRenderedId = 'HARVEST';
     } else if (this.activeTab === 'markdown') {
       this.renderMarkdownMode();
       this.currentRenderedId = 'MARKDOWN:' + this.app.state.boardId;
@@ -106,6 +112,13 @@ export class PropertiesPanel {
       this.updateValueElement('board-topic', currentTopic);
     } else if (this.activeTab === 'search') {
       // Search UI manages its own internal soft updates
+    } else if (this.activeTab === 'harvest') {
+      if (this.harvestDebounce) clearTimeout(this.harvestDebounce);
+      this.harvestDebounce = setTimeout(() => {
+          if (this.activeTab === 'harvest' && this.harvestPanel) {
+              this.harvestPanel.fullRender();
+          }
+      }, 500);
     } else if (this.activeTab === 'markdown') {
       if (this.currentRenderedId !== 'MARKDOWN:' + this.app.state.boardId) {
          this.fullRender();
@@ -404,6 +417,14 @@ export class PropertiesPanel {
          this.app.searchUI.container.style.boxShadow = 'none';
          this.app.searchUI.container.style.border = 'none';
          this.app.searchUI.container.style.borderRadius = '0';
+      }
+   }
+
+   renderHarvestMode() {
+      this.bodyEl.style.padding = '0'; // Allow Harvest UI to stretch
+      if (this.harvestPanel && this.harvestPanel.container) {
+         this.bodyEl.appendChild(this.harvestPanel.container);
+         this.harvestPanel.mount();
       }
    }
 

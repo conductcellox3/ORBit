@@ -58,4 +58,13 @@ export class Selection {
       this.notify();
     }
   }
+
+  multiSelect(idsArray, type) {
+    this.selectedIds.clear();
+    for (const id of idsArray) {
+      this.selectedIds.add(id);
+    }
+    this.type = type;
+    this.notify();
+  }
 }

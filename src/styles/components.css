@@ -48,7 +48,7 @@
 
 .orbit-note.is-selected {
   box-shadow: var(--shadow-selected);
-  outline: 1.5px solid var(--color-focus-ring);
+  outline: 2px solid var(--color-interactive-primary, #3B82F6);
   outline-offset: -1px;
 }
 
@@ -124,7 +124,7 @@
 }
 
 .orbit-frame.is-selected {
-  outline: 1.5px solid var(--color-focus-ring);
+  outline: 2px solid var(--color-interactive-primary, #3B82F6);
   box-shadow: var(--shadow-selected);
 }
 
@@ -349,7 +349,8 @@
 /* Properties Panel Foundation */
 .orbit-properties-header {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 4px;
   margin-bottom: 24px;
 }
 
@@ -358,9 +359,9 @@
   border: none;
   outline: none;
   color: var(--color-text-dim, #64748B);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  padding: 4px 8px;
+  padding: 4px 6px;
   cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: color 0.2s, border-color 0.2s;
