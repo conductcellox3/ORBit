@@ -15,7 +15,6 @@ export class ShellLayout {
     this.rightPane = new SidePane('right-pane', `orbit:${this.workspaceId}:rightPane`, 340);
     
     this.leftRail = new IconRail('left-rail', 'left', this.leftPane);
-    this.rightRail = new IconRail('right-rail', 'right', this.rightPane);
     
     this.tabs = new TabManager('top-center-tabs', app);
     this.topbar = new TopbarManager('top-right-utils', app);
@@ -81,7 +80,6 @@ export class ShellLayout {
     this.leftPane.mount();
     this.rightPane.mount();
     this.leftRail.mount();
-    this.rightRail.mount();
     
     this.tabs.mount();
     this.topbar.mount();

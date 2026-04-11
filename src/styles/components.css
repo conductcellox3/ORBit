@@ -388,30 +388,6 @@
 }
 
 /* Properties Panel Foundation */
-.orbit-properties-header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-bottom: 24px;
-}
-
-.orbit-panel-tab {
-  background: none;
-  border: none;
-  outline: none;
-  color: var(--color-text-dim, #64748B);
-  font-size: 13px;
-  font-weight: 500;
-  padding: 4px 6px;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: color 0.2s, border-color 0.2s;
-}
-
-.orbit-panel-tab.is-active {
-  color: var(--color-interactive-primary, #3B82F6);
-  border-bottom-color: var(--color-interactive-primary, #3B82F6);
-}
 
 .orbit-properties {
   display: flex;

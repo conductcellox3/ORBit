@@ -202,12 +202,20 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  transition: background var(--transition-speed);
+  transition: background var(--transition-speed), opacity var(--transition-speed);
   color: var(--text-color);
+  opacity: 0.6;
 }
 
 .rail-button:hover {
   background-color: rgba(0, 0, 0, 0.05);
+  opacity: 1;
+}
+
+.rail-button.is-active {
+  color: var(--color-interactive-primary, #3B82F6);
+  background-color: rgba(59, 130, 246, 0.1);
+  opacity: 1;
 }
 
 #center-workspace {

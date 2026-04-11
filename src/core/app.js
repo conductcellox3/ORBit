@@ -596,7 +596,7 @@ export class App {
       this.shell.rightPane.open();
     }
     if (this.propertiesPanel) {
-      this.propertiesPanel.switchTab('search');
+      this.propertiesPanel.switchTab('search', true);
       if (this.searchUI && this.searchUI.input) {
         setTimeout(() => this.searchUI.input.focus(), 50);
       }

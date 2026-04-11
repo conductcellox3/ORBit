@@ -8,7 +8,8 @@ export class PropertiesPanel {
     this.bodyEl = document.getElementById('orbit-properties-body');
     this.tabEls = document.querySelectorAll('.orbit-panel-tab');
     
-    this.activeTab = 'board';
+    const savedMode = localStorage.getItem('orbit:rightPanelMode');
+    this.activeTab = savedMode || 'board';
     this.currentRenderedId = null; 
     this.currentRenderedTab = null;
 
@@ -22,14 +23,7 @@ export class PropertiesPanel {
         return; // Skip selection-driven panel updates for these independent tabs
       }
 
-      if (this.app.selection.selectedIds.size === 1) {
-        this.switchTab('inspect', true);
-      } else if (this.app.selection.selectedIds.size === 0) {
-        if (!this.app.isGraphActive || !this.app.boardsGraph?.selectedGraphNodeId) {
-          this.switchTab('board', true);
-        }
-      }
-      
+      // Re-render current mode (Inspect or Board) but DO NOT steal mode from the user
       this.fullRender();
     });
 
@@ -44,20 +38,50 @@ export class PropertiesPanel {
         this.switchTab(tab.dataset.target, false);
       });
     });
+    this.switchTab(this.activeTab, true);
   }
 
   switchTab(target, auto = false) {
-    if (this.activeTab === target) return;
+    const pane = this.app.shell?.rightPane;
+    
+    if (this.activeTab === target) {
+      if (!auto && pane) pane.toggle();
+      // Ensure UI highlights even if initial
+      this.tabEls.forEach(tab => {
+        tab.classList.toggle('is-active', tab.dataset.target === target);
+      });
+      return;
+    }
+
     this.activeTab = target;
+    localStorage.setItem('orbit:rightPanelMode', target);
+
     this.tabEls.forEach(tab => {
       tab.classList.toggle('is-active', tab.dataset.target === target);
     });
-    if (!auto) this.fullRender();
+
+    if (!auto && pane && !pane.isOpen) {
+      pane.open();
+    }
+    
+    this.fullRender();
   }
 
   fullRender() {
     this.bodyEl.innerHTML = ''; // Wipe dirty state
     this.bodyEl.style.padding = ''; // Reset custom padding for full-bleed tabs
+
+    const headerSlot = document.getElementById('right-pane-action-slot');
+    if (headerSlot) {
+      const titles = {
+        'board': 'Board Properties',
+        'search': 'Search',
+        'inspect': 'Inspect Element',
+        'harvest': 'Harvest',
+        'markdown': 'Markdown Export'
+      };
+      headerSlot.textContent = titles[this.activeTab] || 'Properties';
+    }
     
     if (this.activeTab === 'board') {
       this.renderBoardMode();
