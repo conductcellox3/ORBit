@@ -1,6 +1,7 @@
 import { assetResolver } from '../legacy/assetResolver.js';
 import { workspaceManager } from '../core/workspace.js';
 import { parseMarkdown } from '../utils/markdownParser.js';
+import { handleEmacsKeydown } from '../interactions/emacsBindings.js';
 
 export class NoteRenderer {
   constructor(app, container, interactions) {
@@ -544,6 +545,10 @@ export class NoteRenderer {
         range.insertNode(document.createTextNode(text));
       }
     });
+
+      content.addEventListener('keydown', (e) => {
+          handleEmacsKeydown(e, content);
+      });
 
       content.addEventListener('blur', () => {
         if (content.innerText !== this.app.state.notes.get(note.id).text) {

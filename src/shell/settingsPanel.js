@@ -167,6 +167,58 @@ export class SettingsPanel {
         body.appendChild(weeklyCfg.row);
         this._selects = [dailyCfg, weeklyCfg];
 
+        // Editor Features Section
+        const editorHeader = document.createElement('div');
+        editorHeader.style.marginTop = '16px';
+        editorHeader.style.paddingTop = '16px';
+        editorHeader.style.borderTop = '1px solid var(--border-color)';
+        editorHeader.style.fontWeight = '500';
+        editorHeader.style.fontSize = '12px';
+        editorHeader.style.color = 'var(--color-text-main)';
+        editorHeader.textContent = 'Editor Features';
+        body.appendChild(editorHeader);
+
+        const emacsRow = document.createElement('div');
+        emacsRow.style.display = 'flex';
+        emacsRow.style.alignItems = 'flex-start';
+        emacsRow.style.gap = '10px';
+        
+        const emacsCheckbox = document.createElement('input');
+        emacsCheckbox.type = 'checkbox';
+        emacsCheckbox.id = 'toggle-emacs-editing';
+        emacsCheckbox.checked = appSettings.getEmacsEditingEnabled();
+        emacsCheckbox.style.marginTop = '2px';
+        emacsCheckbox.style.cursor = 'pointer';
+
+        const emacsLabelContainer = document.createElement('div');
+        emacsLabelContainer.style.display = 'flex';
+        emacsLabelContainer.style.flexDirection = 'column';
+        emacsLabelContainer.style.gap = '2px';
+
+        const emacsLabelText = document.createElement('label');
+        emacsLabelText.htmlFor = 'toggle-emacs-editing';
+        emacsLabelText.textContent = 'Enable Emacs-style text editing in notes';
+        emacsLabelText.style.fontSize = '12px';
+        emacsLabelText.style.color = 'var(--color-text-main)';
+        emacsLabelText.style.cursor = 'pointer';
+
+        const emacsSubText = document.createElement('div');
+        emacsSubText.textContent = 'Ctrl+A/E/F/B, Alt+F/B etc.';
+        emacsSubText.style.fontSize = '10px';
+        emacsSubText.style.color = 'var(--color-text-muted)';
+        
+        emacsLabelContainer.appendChild(emacsLabelText);
+        emacsLabelContainer.appendChild(emacsSubText);
+        
+        emacsRow.appendChild(emacsCheckbox);
+        emacsRow.appendChild(emacsLabelContainer);
+        
+        emacsCheckbox.addEventListener('change', (e) => {
+            appSettings.setEmacsEditingEnabled(e.target.checked);
+        });
+        
+        body.appendChild(emacsRow);
+
         // Developer Menu Section
         const devHeader = document.createElement('div');
         devHeader.style.marginTop = '16px';
@@ -224,6 +276,11 @@ export class SettingsPanel {
         const toggleCheckbox = this.element.querySelector('#toggle-legacy-archive');
         if (toggleCheckbox) {
             toggleCheckbox.checked = appSettings.getShowLegacyArchive();
+        }
+
+        const emacsCheckbox = this.element.querySelector('#toggle-emacs-editing');
+        if (emacsCheckbox) {
+            emacsCheckbox.checked = appSettings.getEmacsEditingEnabled();
         }
 
         if (this._selects) {

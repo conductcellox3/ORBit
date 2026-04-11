@@ -18,5 +18,11 @@ export const appSettings = {
     setWeeklyFolderId(val) {
         if (!val) localStorage.removeItem('orbit_weekly_board_folder_id');
         else localStorage.setItem('orbit_weekly_board_folder_id', val);
+    },
+    getEmacsEditingEnabled() {
+        return localStorage.getItem('orbit_emacs_editing') === 'true';
+    },
+    setEmacsEditingEnabled(val) {
+        localStorage.setItem('orbit_emacs_editing', val === true ? 'true' : 'false');
     }
 };

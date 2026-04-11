@@ -155,5 +155,21 @@ export const HelpContent = [
         description: "まとめた思考を整理して外に出すための機能です。右パネルの Markdown タブでは、繋いだノートをツリー構造のテキストに変換でき、そのままAI等に読ませるのに最適です。トップバー右側のプリンタアイコンを押せば、キャンバスの見た目そのままに高精細な画像やPDFとして保存できます。"
       }
     ]
+  },
+  {
+    category: "11. オプション: Emacs風テキスト編集 (Emacs Editing)",
+    items: [
+      {
+        title: "Emacs Liteキーバインドを利用する",
+        description: "ORBitでは、テキストノート入力時にEmacs風のカーソル移動やテキスト削除を任意で有効にすることができます。\n右側の「Settings」アイコンから「Enable Emacs-style text editing in notes」をONにしてください。\n※この設定は「テキストノート」と「Markdownノートの編集モード」でのみ有効になります。Searchやタイトル入力時などは、普段通りの安全な動作が保たれます。"
+      },
+      {
+        title: "対応している主なショートカット",
+        description: "以下の基本的なコマンドによる高速なテキスト編集がサポートされています。\n" +
+          "【移動】 Ctrl+A (行頭), Ctrl+E (行末), Ctrl+F (次文字), Ctrl+B (前文字), Ctrl+N (次行), Ctrl+P (前行), Alt+F (次単語), Alt+B (前単語)\n" +
+          "【削除】 Ctrl+D (次文字), Ctrl+H (前文字), Alt+D (次単語), Alt+Backspace (前単語)\n" +
+          "【行カット】 Ctrl+K (行末まで削除。行末にいる場合は改行を削除)"
+      }
+    ]
   }
 ];
